@@ -1,6 +1,6 @@
 ---
-title: "Portfolio item number 1"
-excerpt: "Short description of portfolio item number 1<br/><img src='/images/500x300.png'>"
+title: "Pneumonic Lung X-Ray Classification "
+excerpt: "Using Deep Learning to classify X-Ray images of Lungs in to Pneumonic and non-Pneumonic.<br/><img src='https://upload.wikimedia.org/wikipedia/commons/8/81/Chest_radiograph_in_influensa_and_H_influenzae%2C_posteroanterior%2C_annotated.jpg'>"
 collection: portfolio
 ---
 
