@@ -11,21 +11,20 @@ redirect_from:
 
 Education
 ======
-* B.S. in GitHub, GitHub University, 2012
-* M.S. in Jekyll, GitHub University, 2014
-* Ph.D in Version Control Theory, GitHub University, 2018 (expected)
+* B.S. in Software Engineering, Addis Ababa Science and Technology University, 2018
+* Ph.D in Computer Science, Iowa State University, 2026 (expected)
 
 Work experience
 ======
-* Summer 2015: Research Assistant
-  * Github University
+* Summer 2022: Research Assistant
+  * Iowa State University
   * Duties included: Tagging issues
-  * Supervisor: Professor Git
+  * Supervisor: Professor Wallapak
 
-* Fall 2015: Research Assistant
-  * Github University
+* Fall 2021 - Present: Teaching Assistant
+  * Iowa State University
   * Duties included: Merging pull requests
-  * Supervisor: Professor Hub
+  * Supervisor: Professor Steven Kautz, Matthew Tan Creti, Yuechuan
   
 Skills
 ======
@@ -56,4 +55,4 @@ Teaching
   
 Service and leadership
 ======
-* Currently signed in to 43 different slack teams
+* Hackathon Chaur at Graduate Student Organization in Iowa State University
