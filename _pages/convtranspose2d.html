@@ -1,0 +1,264 @@
+<!--
+ Created on Mon Mar 13 2023
+
+ The MIT License (MIT)
+ Copyright (c) 2023 Abdurahman A. Mohammed
+
+ Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+ and associated documentation files (the "Software"), to deal in the Software without restriction,
+ including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
+ subject to the following conditions:
+
+ The above copyright notice and this permission notice shall be included in all copies or substantial
+ portions of the Software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+ TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<!---- HTML and JavaScript webpage that calculates the output shape of a ConvTranspose2d layer given the input shape, kernel size, stride, padding, and output padding ---->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <!-- Add meta information to the webpage -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <!--Use Lato font on the webpage -->
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+
+    <!--Set a favicon to the webpage from favicon. -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥝</text></svg>">
+
+
+
+
+    <title>ConvTranspose2D Calculator</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.20.2/math.min.js"></script>
+
+</head>
+
+<body style="font-family: lato;" >
+    <div class="container">
+        <h1>ConvTranspose2d Calculator</h1>
+        <p>Calculates the output shape of a ConvTranspose2d layer given the input shape, kernel size, stride, padding,
+            and output padding.</p>
+        <p>For more information, see <a href="https://pytorch.org/docs/stable/nn.html#torch.nn.ConvTranspose2d">the
+                PyTorch documentation</a>.</p>
+        <p>Created by <a href="https://abdumhmd.github.io/">Abdurahman A. Mohammed</a>
+        <p>Source code available on <a href="#">GitHub</a>.</p>
+        <br></p>
+
+        <div class="row">
+            <div class="col-sm-6">
+                <h3>Input Shape</h3>
+                <p>Enter the input shape as a list of integers. For example, <code>[1, 3, 224, 224]</code> is a valid
+                    input shape.</p>
+                <p><input type="text" id="input_shape" class="form-control" placeholder="Enter input shape"></p>
+            </div>
+            <div class="col-sm-6">
+                <h3>Kernel Size</h3>
+                <p>Enter the kernel size as a list of integers. For example, <code>[3, 3]</code> is a valid kernel size.
+                </p>
+                <p><input type="text" id="kernel_size" class="form-control" placeholder="Enter kernel size"></p>
+            </div>
+
+        </div>
+
+        <div class="row">
+            <div class="col-sm-6">
+                <h3>Stride</h3>
+                <p>Enter the stride as a list of integers. For example, <code>[2, 2]</code> is a valid stride.</p>
+                <p><input type="text" id="stride" class="form-control" placeholder="Enter stride"></p>
+            </div>
+            <div class="col-sm-6">
+                <h3>Padding</h3>
+                <p>Enter the padding as a list of integers. For example, <code>[1, 1]</code> is a valid padding.</p>
+                <p><input type="text" id="padding" class="form-control" placeholder="Enter padding"></p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-6">
+                <h3>Output Padding</h3>
+                <p>Enter the output padding as a list of integers. For example, <code>[1, 1]</code> is valid.</p>
+                <p><input type="text" id="output_padding" class="form-control" placeholder="Enter output padding"></p>
+            </div>
+            <div class="col-sm-6">
+                <h3>Output Shape</h3>
+                <p>Output shape:</p>
+                <p><input type="text" id="output_shape" class="form-control" placeholder="Output shape" readonly></p>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-12">
+                <button type="button" class="btn btn-primary" onclick="calculate()">Calculate</button>
+            </div>
+        </div>
+
+        <br>
+
+        <div class="row">
+            <div class="col-sm-12">
+                <h3>Formula</h3>
+                <p>The formula used to calculate the output shape is:</p>
+                <p><code>output_shape = (input_shape - 1) * stride - 2 * padding + kernel_size + output_padding</code></p>
+            </div>
+        </div>
+
+        <br>
+
+        <div class="row">
+            <div class="col-sm-12">
+                <h3>Example</h3>
+                <p>For example, if the input shape is <code>[1, 3, 224, 224]</code>, the kernel size is <code>[3, 3]</code>,
+                    the stride is <code>[2, 2]</code>, the padding is <code>[1, 1]</code>, and the output padding is
+                    <code>[1, 1]</code>, then the output shape is <code>[1, 3, 448, 448]</code>.</p>
+            </div>
+        </div>
+
+        <br>
+
+        <div class="row">
+            <div class="col-sm-12">
+                <h3>References</h3>
+                <p><a href="https://pytorch.org/docs/stable/nn.html#torch.nn.ConvTranspose2d">PyTorch documentation</a></p>
+            </div>
+        </div>
+
+    </div>
+
+
+    <footer style="text-align: center;">
+        Made with <span style="color: rgb(0, 166, 255);">♥</span> by Abdurahman A. Mohammed &copy; <script>document.write(new Date().getFullYear())</script>
+      </footer>
+
+
+    </div>
+
+    <script>
+        function calculate() {
+            var input_shape = JSON.parse(document.getElementById("input_shape").value);
+            var kernel_size = JSON.parse(document.getElementById("kernel_size").value);
+            var stride = JSON.parse(document.getElementById("stride").value);
+            var padding = JSON.parse(document.getElementById("padding").value);
+            var output_padding = JSON.parse(document.getElementById("output_padding").value);
+
+            var output_shape = [input_shape[0], input_shape[1], 0, 0];
+
+            // calculate output shape using formula output_size = (input_size - 1) * stride - 2 * padding + kernel_size + output_padding
+            output_shape[2] = (input_shape[2] - 1) * stride[0] - 2 * padding[0] + kernel_size[0] + output_padding[0];
+            output_shape[3] = (input_shape[3] - 1) * stride[1] - 2 * padding[1] + kernel_size[1] + output_padding[1];
+
+            // output_shape[2] = (input_shape[2] - 1) * stride[0] - 2 * padding[0] + kernel_size[0] + output_padding[0];
+            // output_shape[3] = (input_shape[3] - 1) * stride[1] - 2 * padding[1] + kernel_size[1] + output_padding[1];
+
+            document.getElementById("output_shape").value = output_shape;
+        }
+
+        // Add input validation to the forms
+        $(document).ready(function () {
+            $("#input_shape").on("input", function () {
+                try {
+                    var input_shape = JSON.parse(document.getElementById("input_shape").value);
+                    if (input_shape.length != 4) {
+                        throw "Input shape must be a list of 4 integers";
+                    }
+                    for (var i = 0; i < input_shape.length; i++) {
+                        if (!Number.isInteger(input_shape[i])) {
+                            throw "Input shape must be a list of 4 integers";
+                        }
+                    }
+                    document.getElementById("input_shape").style.borderColor = "green";
+                } catch (err) {
+                    document.getElementById("input_shape").style.borderColor = "red";
+                }
+            });
+
+            $("#kernel_size").on("input", function () {
+                try {
+                    var kernel_size = JSON.parse(document.getElementById("kernel_size").value);
+                    if (kernel_size.length != 2) {
+                        throw "Kernel size must be a list of 2 integers";
+                    }
+                    for (var i = 0; i < kernel_size.length; i++) {
+                        if (!Number.isInteger(kernel_size[i])) {
+                            throw "Kernel size must be a list of 2 integers";
+                        }
+                    }
+                    document.getElementById("kernel_size").style.borderColor = "green";
+                } catch (err) {
+                    document.getElementById("kernel_size").style.borderColor = "red";
+                }
+            });
+
+            $("#stride").on("input", function () {
+                try {
+                    var stride = JSON.parse(document.getElementById("stride").value);
+                    if (stride.length != 2) {
+                        throw "Stride must be a list of 2 integers";
+                    }
+                    for (var i = 0; i < stride.length; i++) {
+                        if (!Number.isInteger(stride[i])) {
+                            throw "Stride must be a list of 2 integers";
+                        }
+                    }
+                    document.getElementById("stride").style.borderColor = "green";
+                } catch (err) {
+                    document.getElementById("stride").style.borderColor = "red";
+                }
+            });
+
+            $("#padding").on("input", function () {
+                try {
+                    var padding = JSON.parse(document.getElementById("padding").value);
+                    if (padding.length != 2) {
+                        throw "Padding must be a list of 2 integers";
+                    }
+                    for (var i = 0; i < padding.length; i++) {
+                        if (!Number.isInteger(padding[i])) {
+                            throw "Padding must be a list of 2 integers";
+                        }
+                    }
+                    document.getElementById("padding").style.borderColor = "green";
+                } catch (err) {
+                    document.getElementById("padding").style.borderColor = "red";
+                }
+            });
+
+            $("#output_padding").on("input", function () {
+                try {
+                    var output_padding = JSON.parse(document.getElementById("output_padding").value);
+                    if (output_padding.length != 2) {
+                        throw "Output padding must be a list of 2 integers";
+                    }
+                    for (var i = 0; i < output_padding.length; i++) {
+                        if (!Number.isInteger(output_padding[i])) {
+                            throw "Output padding must be a list of 2 integers";
+                        }
+                    }
+                    document.getElementById("output_padding").style.borderColor = "green";
+                } catch (err) {
+                    document.getElementById("output_padding").style.borderColor = "red";
+                }
+            });
+        });
+
+    </script>
+
+
+
+
+
+
+</body>
+
+</html>

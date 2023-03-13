@@ -1,0 +1,247 @@
+<!--
+ Created on Mon Mar 13 2023
+
+ The MIT License (MIT)
+ Copyright (c) 2023 Abdurahman A. Mohammed
+
+ Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+ and associated documentation files (the "Software"), to deal in the Software without restriction,
+ including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
+ subject to the following conditions:
+
+ The above copyright notice and this permission notice shall be included in all copies or substantial
+ portions of the Software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+ TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<!--A tool to calculate the output shape of a Conv2D layer -->
+<!DOCTYPE html>
+<html>
+
+<head>
+    <!-- Add meta information to the webpage -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <!--Add meta information for seo related to AI, Machine Learning, PyTorch, Tensorflow, Conv2D, Convolution -->
+    <meta name="description" content="A tool to calculate the output shape of a Conv2D layer">
+    <meta name="keywords" content="AI, Machine Learning, PyTorch, Tensorflow, Conv2D, Convolution">
+
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🥝</text></svg>">
+
+    <!--Use Lato font on the webpage -->
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+    <title>Conv2D Shape Calculator</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.20.2/math.min.js"></script>
+
+</head>
+
+<body <body style="font-family: lato;">
+    <div class="container">
+        <h1>Conv2D Output Shape Calculator</h1>
+        <p>Calculates the output shape of a Conv2D layer given the input shape, kernel size, stride, padding</p>
+        <p>For more information, see <a href="https://pytorch.org/docs/stable/nn.html#torch.nn.Conv2d">the
+                PyTorch documentation</a>.</p>
+        <p>Created by <a href="https://abdumhmd.github.io/">Abdurahman A. Mohammed</a>
+        <p>Source code available on <a href="#">GitHub</a>.</p>
+        <br></p>
+
+        <!--
+            create div rows to take the following inputs:
+            Input_shape(HxW): The height and width of the input image
+            in_channels (int): Number of channels in the input image
+            out_channels (int): Number of channels produced by the convolution
+            kernel_size (int or tuple): Size of the convolving kernel
+            stride (int or tuple, optional): Stride of the convolution. Default: 1
+            padding (int, tuple or str, optional): Padding added to all four sides of the input. Default: 0
+            padding_mode (str, optional): ``'zeros'``, ``'reflect'``,``'replicate'`` or ``'circular'``. Default: ``'zeros'``
+            dilation (int or tuple, optional): Spacing between kernel elements. Default: 1
+            groups (int, optional): Number of blocked connections from input channels to output channels. Default: 1
+            bias (bool, optional): If ``True``, adds a learnable bias to the output. Default: ``True``
+         -->
+
+        <div class="row">
+            <div class="col-sm-12">
+                <h3>Input Shape</h3>
+                <div class="row">
+                    <div class="col-sm-4">
+                        <label for="input_height">Height</label>
+                        <input type="number" class="form-control" id="input_height" placeholder="Enter height">
+                    </div>
+                    <div class="col-sm-4">
+                        <label for="input_width">Width</label>
+                        <input type="number" class="form-control" id="input_width" placeholder="Enter width">
+                    </div>
+                    <div class="col-sm-4">
+                        <label for="input_width">Channels</label>
+                        <input type="number" class="form-control" id="input_channels" placeholder="Enter channels">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-6">
+                <h3>Output Channels</h3>
+                <input type="number" class="form-control" id="out_channels"
+                    placeholder="Enter number of output channels">
+            </div>
+            <div class="col-sm-6">
+                <h3>Kernel Size</h3>
+                <input type="number" class="form-control" id="kernel_size" placeholder="Enter kernel size">
+            </div>
+
+        </div>
+
+        <div class="row">
+            <div class="col-sm-6">
+                <h3>Stride</h3>
+                <input type="number" class="form-control" id="stride" placeholder="Enter stride">
+            </div>
+            <div class="col-sm-6">
+                <h3>Padding</h3>
+                <input type="number" class="form-control" id="padding" placeholder="Enter padding">
+            </div>
+
+        </div>
+
+        <div class="row">
+            <div class="col-sm-6">
+                <h3>Output Shape</h3>
+                <p>Output shape:</p>
+                <p><input type="text" id="output_shape" class="form-control" placeholder="Output shape" readonly></p>
+            </div>
+        </div>
+        <!--Calculate button -->
+        <div class="row">
+            <div class="col-sm-12">
+                <button type="button" class="btn btn-primary" onclick="calculate()">Calculate</button>
+            </div>
+        </div>
+
+
+        <br>
+
+        
+
+        <div class="row">
+            <div class="col-sm-12">
+                <h3>Formula</h3>
+                <p>The formula used to calculate the output shape is:</p>
+                <p><code>output_shape = ((input_height - kernel_size + 2 * padding) / stride) + 1 </code></p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-12">
+                <h3>References</h3>
+                <p><a href="https://pytorch.org/docs/stable/nn.html#torch.nn.Conv2d">PyTorch documentation</a></p>
+            </div>
+        </div>
+        <br>
+    </div>
+
+
+
+
+    <footer style="text-align: center;">
+        Made with <span style="color: rgb(0, 166, 255);">♥</span> by Abdurahman A. Mohammed &copy;
+        <script>document.write(new Date().getFullYear())</script>
+    </footer>
+
+
+
+
+</body>
+<script>
+    function calculate() {
+        // get input values
+        var input_height = document.getElementById("input_height").value;
+        var input_width = document.getElementById("input_width").value;
+        var input_channels = document.getElementById("input_channels").value;
+        var out_channels = document.getElementById("out_channels").value;
+        var kernel_size = document.getElementById("kernel_size").value;
+        var stride = document.getElementById("stride").value;
+        var padding = document.getElementById("padding").value;
+        // print input values
+        console.log("input_height: " + input_height);
+        console.log("input_width: " + input_width);
+        console.log("input_channels: " + input_channels);
+
+
+        // calculate output shape
+        var output_height = Math.floor((input_height - kernel_size + 2 * padding) / stride) + 1;
+        var output_width = Math.floor((input_width - kernel_size + 2 * padding) / stride) + 1;
+        var output_channels = out_channels;
+
+        // display output shape
+        document.getElementById("output_shape").value = output_height + " x " + output_width + " x " + output_channels;
+    }
+
+    // add input validation to the input fields by changin the border color
+    // to red if the input is invalid
+    // to green if the input is valid
+    document.getElementById("input_height").addEventListener("input", function () {
+        if (this.value < 1) {
+            this.style.borderColor = "red";
+        } else {
+            this.style.borderColor = "green";
+        }
+    });
+    document.getElementById("input_width").addEventListener("input", function () {
+        if (this.value < 1) {
+            this.style.borderColor = "red";
+        } else {
+            this.style.borderColor = "green";
+        }
+    });
+    document.getElementById("input_channels").addEventListener("input", function () {
+        if (this.value < 1) {
+            this.style.borderColor = "red";
+        } else {
+            this.style.borderColor = "green";
+        }
+    });
+    document.getElementById("out_channels").addEventListener("input", function () {
+        if (this.value < 1) {
+            this.style.borderColor = "red";
+        } else {
+            this.style.borderColor = "green";
+        }
+    });
+    document.getElementById("kernel_size").addEventListener("input", function () {
+        if (this.value < 1) {
+            this.style.borderColor = "red";
+        } else {
+            this.style.borderColor = "green";
+        }
+    });
+    document.getElementById("stride").addEventListener("input", function () {
+        if (this.value < 1) {
+            this.style.borderColor = "red";
+        } else {
+            this.style.borderColor = "green";
+        }
+    });
+    document.getElementById("padding").addEventListener("input", function () {
+        if (this.value < 0) {
+            this.style.borderColor = "red";
+        } else {
+            this.style.borderColor = "green";
+        }
+    });
+
+
+
+
+
+</script>
+
+</html>
