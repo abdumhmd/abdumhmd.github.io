@@ -7,6 +7,6 @@ redirect_from:
   - /tools
 ---
 
-<!-- Markdown Links to conv2d.html and convtranspose2d.html -->
-[conv2d]:(conv2d.html)
-[convtranspose2d]:(convtranspose2d.html)
+# Tools I use for Convolutional Neural Networks
+- [conv2d]:(conv2d.html)
+- [convtranspose2d]:(convtranspose2d.html)
