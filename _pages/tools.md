@@ -8,5 +8,5 @@ redirect_from:
 ---
 
 # Tools I use for Convolutional Neural Networks
-- [conv2d]:(conv2d.html)
-- [convtranspose2d]:(convtranspose2d.html)
+- Calculate the output shape of a Conv2D layer [Here]:(/files/conv2d.html)
+- Calculate the output shape of a ConvTranspose2D layer [Here]:(/files/convtranspose2d.html)
