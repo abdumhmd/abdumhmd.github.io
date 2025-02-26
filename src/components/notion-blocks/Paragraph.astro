@@ -1,0 +1,43 @@
+---
+import * as interfaces from "../../lib/interfaces.ts";
+import { getNotionColorToTailwindColor } from "../../lib/style-helpers.ts";
+import RichText from "./RichText.astro";
+import NotionBlocks from "../NotionBlocks.astro";
+
+export interface Props {
+	block: interfaces.Block;
+	renderChildren?: boolean;
+	setId?: boolean;
+}
+
+const { block, renderChildren = true, setId = true } = Astro.props;
+
+const hasChildren = block.Paragraph.Children && block.Paragraph.Children.length > 0;
+const Tag = hasChildren && renderChildren ? "div" : "p";
+---
+
+<Tag
+	class:list={[
+		"my-1 min-h-7",
+		{
+			[`${getNotionColorToTailwindColor(block.Paragraph.Color)} rounded-sm px-1`]:
+				block.Paragraph.Color &&
+				!["default", "default_background", "default-background"].includes(block.Paragraph.Color),
+		},
+	]}
+	id={setId ? block.Id : undefined}
+>
+	{block.Paragraph.RichTexts.map((richText) => <RichText richText={richText} blockID={block.Id} />)}
+	{block.Paragraph.RichTexts.length === 0 && <br />}
+	{
+		hasChildren && renderChildren && (
+			<div class="pl-6">
+				<NotionBlocks
+					blocks={block.Paragraph.Children}
+					setId={setId}
+					renderChildren={renderChildren}
+				/>
+			</div>
+		)
+	}
+</Tag>

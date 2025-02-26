@@ -1,0 +1,142 @@
+---
+import createMetascraper from "metascraper";
+import metascraperDescription from "metascraper-description";
+import metascraperImage from "metascraper-image";
+import metascraperTitle from "metascraper-title";
+import * as interfaces from "../../../lib/interfaces.ts";
+import Caption from "../Caption.astro";
+
+export interface Props {
+	block: interfaces.Block;
+	urlMap: { [key: string]: string };
+	setId?: boolean;
+}
+
+const { block, urlMap, setId = true } = Astro.props;
+
+const urlString = (block.Bookmark || block.LinkPreview || block.Embed).Url;
+const metascraper = createMetascraper([
+	metascraperDescription(),
+	metascraperImage(),
+	metascraperTitle(),
+]);
+
+let url: URL;
+let metadata: Record<string, string>;
+let notDNSForbidden: boolean;
+notDNSForbidden = true;
+try {
+	url = new URL(urlString);
+	const html = urlMap[urlString];
+	if (html) {
+		metadata = await metascraper({ html, url });
+		if (metadata && metadata.title == "Just a moment...") {
+			notDNSForbidden = false;
+		}
+	}
+} catch (err) {
+	console.log(err);
+}
+---
+
+<div class="bookmark no-rss pb-2" id={setId ? block.Id : undefined}>
+	{
+		url && notDNSForbidden ? (
+			<div class="flex w-full max-w-full overflow-hidden text-sm">
+				<a
+					href={url.toString()}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="flex w-full max-w-full min-w-0 grow items-stretch overflow-hidden rounded-sm border border-gray-200 no-underline select-none dark:border-gray-800"
+				>
+					<div class="flex-bookmark-text text-textColor/90 overflow-hidden p-3 text-left">
+						<div class="mb-0.5 h-6 truncate overflow-hidden leading-5 whitespace-nowrap">
+							{metadata && metadata.title}
+						</div>
+						<div class="h-8 overflow-hidden text-xs leading-4 opacity-80">
+							{metadata && metadata.description}
+						</div>
+						<div class="mt-1.5 flex max-w-full items-baseline">
+							<div class="mr-1.5 h-4 w-4 min-w-4">
+								<img
+									class="inline-block max-w-full"
+									loading="lazy"
+									src={`https://www.google.com/s2/favicons?domain=${url.hostname}`}
+									alt="title"
+									decoding="async"
+								/>
+							</div>
+							<div class="truncate overflow-hidden text-xs leading-4 whitespace-nowrap">
+								{url.toString()}
+							</div>
+						</div>
+					</div>
+
+					{metadata && metadata.image && (
+						<div class="flex-bookmark-image relative hidden sm:block">
+							<img
+								class="absolute! h-full w-full object-contain object-right"
+								loading="lazy"
+								src={metadata.image}
+								alt="title"
+								decoding="async"
+							/>
+						</div>
+					)}
+				</a>
+			</div>
+		) : (
+			<div class="flex w-full max-w-full overflow-hidden text-sm">
+				<a
+					href={url.toString()}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="flex w-full max-w-full min-w-0 grow items-stretch overflow-hidden rounded-sm border border-gray-200 no-underline select-none dark:border-gray-800"
+				>
+					<div class="flex-bookmark-text text-textColor/90 overflow-hidden p-3 text-left">
+						<div class="flex max-w-full items-baseline">
+							<div class="mr-1.5 h-4 w-4 min-w-4">
+								<img
+									class="inline-block max-w-full"
+									loading="lazy"
+									src={`https://www.google.com/s2/favicons?domain=${url.hostname}`}
+									alt="title"
+									decoding="async"
+								/>
+							</div>
+							<div class="truncate overflow-hidden text-xs leading-4 whitespace-nowrap">
+								{url.toString()}
+							</div>
+						</div>
+					</div>
+				</a>
+			</div>
+		)
+	}
+	<Caption richTexts={(block.Bookmark || block.LinkPreview || block.Embed).Caption} block={block} />
+</div>
+
+<div class="rss-only hidden">
+	{
+		url &&
+			(metadata && metadata.title && !notDNSForbidden ? (
+				<>
+					<span>Bookmark for </span>
+					<a href={url.toString()}>{metadata.title}</a>
+				</>
+			) : (
+				<span>
+					Bookmark for <a href={url.toString()}>{url.toString()}</a>
+				</span>
+			))
+	}
+</div>
+
+<style>
+	.flex-bookmark-image {
+		flex: 1 1 180px;
+	}
+	.flex-bookmark-text {
+		flex: 4 1 180px;
+	}
+</style>

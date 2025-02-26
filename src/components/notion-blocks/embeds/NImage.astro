@@ -1,0 +1,55 @@
+---
+import { ENABLE_LIGHTBOX } from "../../../constants.ts";
+import * as interfaces from "../../../lib/interfaces.ts";
+import { filePath, getFirstImage } from "../../../lib/blog-helpers";
+import Caption from "../Caption.astro";
+
+export interface Props {
+	block: interfaces.Block;
+	setId?: boolean;
+}
+
+const { block, setId = true } = Astro.props;
+
+let image = "";
+if (block.NImage?.External) {
+	image = block.NImage.External.Url;
+} else if (block.NImage?.File) {
+	image = filePath(new URL(block.NImage.File.OptimizedUrl));
+}
+
+const plainTextCaption = block.NImage?.Caption.map((richText) => richText.PlainText).join(" ");
+---
+
+{
+	image && (
+		<figure class="mx-auto mt-1 max-w-full" id={setId ? block.Id : undefined}>
+			<div class="mx-auto min-w-0">
+				{ENABLE_LIGHTBOX ? (
+					<a
+						data-type="image"
+						href={image}
+						class="mediaglightbox no-rss"
+						data-description={plainTextCaption}
+						aria-label={`Open image with alt ${plainTextCaption} in lightbox`}
+					>
+						<img
+							class="imagemedia block max-w-full rounded-md"
+							loading={getFirstImage() && setId ? "eager" : "lazy"}
+							src={image}
+							alt={plainTextCaption}
+						/>
+					</a>
+				) : (
+					<img
+						class="imagemedia block max-w-full rounded-md"
+						src={image}
+						loading={getFirstImage() ? "eager" : "lazy"}
+						alt={plainTextCaption}
+					/>
+				)}
+			</div>
+			<Caption richTexts={block.NImage.Caption} block={block} as="figcaption" />
+		</figure>
+	)
+}

@@ -1,0 +1,13 @@
+---
+import Icon from "@/components/Icon";
+
+export interface Props {
+	mention_date: string;
+}
+
+const { mention_date } = Astro.props;
+const text = "🗓️";
+---
+
+{text ? <Icon name={text} class="inline h-5 w-5 align-sub" aria-hidden="true" /> : text}
+{" " + mention_date}

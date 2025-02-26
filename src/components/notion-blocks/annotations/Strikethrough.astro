@@ -1,0 +1,19 @@
+---
+import { RichText } from "../../../lib/interfaces.ts";
+
+export interface Props {
+	richText: RichText;
+}
+
+const { richText } = Astro.props;
+---
+
+{
+	richText.Annotation.Strikethrough ? (
+		<span class="line-through decoration-slate-500/50">
+			<slot />
+		</span>
+	) : (
+		<slot />
+	)
+}

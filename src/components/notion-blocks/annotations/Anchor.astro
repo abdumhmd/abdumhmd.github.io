@@ -1,0 +1,79 @@
+---
+import { REFERENCES } from "@/constants";
+import { getAnchorLinkAndBlock } from "../../../lib/blog-helpers.ts";
+import { RichText } from "../../../lib/interfaces.ts";
+import NPagePopover from "@/components/blog/references/NPagePopover.astro";
+import NBlocksPopover from "@/components/blog/references/NBlocksPopover.astro";
+
+export interface Props {
+	richText: RichText;
+	blockID?: string;
+}
+
+const { richText } = Astro.props;
+const { hreflink, blocklinked, conditionmatch, post, isBlockLinkedHeading } =
+	await getAnchorLinkAndBlock(richText);
+---
+
+{
+	hreflink &&
+	REFERENCES &&
+	Object.keys(REFERENCES).length > 0 &&
+	REFERENCES["popovers"] &&
+	conditionmatch &&
+	["block_other_page", "other_page"].includes(conditionmatch) &&
+	post &&
+	post.Title ? (
+		conditionmatch === "block_other_page" ? (
+			<NBlocksPopover
+				block={blocklinked}
+				linkedTo={hreflink}
+				popoverSpanText={""}
+				popoverTitle={post.Title}
+			>
+				<slot />
+			</NBlocksPopover>
+		) : (
+			<NPagePopover
+				linkedTo={hreflink}
+				popoverSpanText={""}
+				popoverTitle={post.Title}
+				postId={post.PageId}
+				excerpt={post.Excerpt}
+			>
+				<slot />
+			</NPagePopover>
+		)
+	) : hreflink ? (
+		conditionmatch === "block_current_page" ? (
+			!isBlockLinkedHeading && post && post.Title ? (
+				<NBlocksPopover
+					block={blocklinked}
+					linkedTo={hreflink}
+					popoverSpanText={""}
+					popoverTitle={""}
+				>
+					<slot />
+				</NBlocksPopover>
+			) : (
+				<a
+					href={hreflink}
+					class="text-link decoration-accent-2/40 underline decoration-dashed underline-offset-2"
+				>
+					<slot />
+				</a>
+			)
+		) : (
+			<a
+				href={hreflink}
+				class="site-page-link text-link decoration-solid"
+				target="_blank"
+				rel="noopener noreferrer"
+			>
+				<slot />
+			</a>
+		)
+	) : (
+		<slot />
+	)
+}

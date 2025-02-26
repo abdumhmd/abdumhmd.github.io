@@ -1,0 +1,114 @@
+---
+// import type { CollectionEntry } from "astro:content";
+// import type { HTMLTag, Polymorphic } from "astro/types";
+import type { HTMLTag } from "astro/types";
+import FormattedDate from "../FormattedDate.astro";
+import type { Post } from "src/lib/interfaces";
+import { getPostContentByPostId, processFileBlocks } from "@/lib/notion/client";
+import {
+	extractTargetBlocks,
+	getNavLink,
+	getPostLink,
+	setCurrentHeadings,
+} from "@/lib/blog-helpers";
+import NotionBlocks from "src/components/NotionBlocks.astro";
+import { getNotionColorToTailwindColor } from "@/lib/style-helpers";
+import { MENU_PAGES_COLLECTION } from "@/constants";
+import Icon from "@/components/Icon";
+import { buildHeadings, slugify } from "@/utils";
+
+// type Props<Tag extends HTMLTag> = Polymorphic<{ as: Tag }> & {
+// 	post: CollectionEntry<"post">;
+// 	withDesc?: boolean;
+// };
+
+interface Props {
+	post_full_preview: Post;
+	as?: HTMLTag;
+	withDesc?: boolean;
+}
+
+const { post_full_preview, as: Tag = "div", withDesc = false } = Astro.props;
+const { blocks, referencesInPage } = await getPostContentByPostId(post_full_preview);
+let headings = buildHeadings(blocks);
+setCurrentHeadings(headings);
+
+const fileAtacchedBlocks = extractTargetBlocks(["image", "video", "file", "audio"], blocks).filter(
+	(block) => {
+		if (!block) {
+			return false;
+		}
+		const imageOrVideoOrAudioOrFile = block.NImage || block.File || block.Video || block.NAudio;
+		return (
+			imageOrVideoOrAudioOrFile &&
+			imageOrVideoOrAudioOrFile.File &&
+			imageOrVideoOrAudioOrFile.File.Url
+		);
+	},
+);
+
+const processedFile = await processFileBlocks(fileAtacchedBlocks);
+
+const postLink = getPostLink(
+	post_full_preview.Slug,
+	post_full_preview.Collection === MENU_PAGES_COLLECTION,
+);
+---
+
+<FormattedDate
+	date={new Date(post_full_preview.Date)}
+	class="text-accent/90 min-w-[120px] text-xs"
+/>
+
+<Tag class="font-bold">
+	{
+		post_full_preview.Pinned && (
+			<Icon
+				class="me-1 inline-block h-6 w-6"
+				name={"pin"}
+				aria-label="Pinned Post"
+				focusable="false"
+				fill="#D50B0D"
+			/>
+		)
+	}
+	<a href={postLink} class="site-page-link inline no-underline">
+		{post_full_preview.Title}
+	</a>
+</Tag>
+
+{
+	withDesc && post_full_preview.Excerpt && (
+		<q class="line-clamp-3 block italic">{post_full_preview.Excerpt}</q>
+	)
+}
+{
+	post_full_preview.Tags && post_full_preview.Tags.length > 0 && (
+		<div class="mt-1 gap-2">
+			<Icon
+				class="me-1 inline-block h-4 w-4"
+				name={"tag-outline"}
+				aria-hidden="true"
+				focusable="false"
+			/>
+			{post_full_preview.Tags.map((tag, i) => (
+				<>
+					<a
+						class={`inline-block rounded-md px-1 text-sm ${getNotionColorToTailwindColor(
+							tag.color + "-background",
+							true,
+						)}`}
+						aria-label={`View more blogs with the tag ${tag.name}`}
+						href={getNavLink("/tags/" + slugify(tag.name) + "/")}
+					>
+						{tag.name}
+					</a>{" "}
+				</>
+			))}
+		</div>
+	)
+}
+
+<section>
+	<NotionBlocks blocks={blocks} />
+</section>

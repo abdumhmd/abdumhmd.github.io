@@ -1,0 +1,25 @@
+---
+import { BlueskyPost } from "./astro-bluesky";
+import { FULL_WIDTH_SM } from "@/constants";
+export interface Props {
+	url: URL;
+}
+
+const { url } = Astro.props;
+const blueskyUrl = url.toString();
+---
+
+{
+	blueskyUrl && (
+		<>
+			<div
+				class={`no-rss ${FULL_WIDTH_SM ? "max-w-full" : "max-w-[min(420px,96%)] print:max-w-full"} mx-auto overflow-scroll`}
+			>
+				<BlueskyPost id={blueskyUrl} />
+			</div>
+			<div class="rss-only hidden">
+				{"Mentions "} <a href={blueskyUrl}>{"bluesky post"}</a>
+			</div>
+		</>
+	)
+}

@@ -1,0 +1,42 @@
+---
+import PageLayout from "@/layouts/Base";
+import { getNavLink } from "@/lib/blog-helpers";
+import { getCollectionsWDesc } from "@/utils";
+import { slugify } from "@/utils";
+
+const meta = {
+	title: "All Collections",
+	description: "A list of all the collections for my posts",
+	ogImage: "/og-image/collectionsindex---index.png",
+};
+
+const collections = await getCollectionsWDesc();
+---
+
+<PageLayout meta={meta}>
+	<h1 class="title mb-6">Collections</h1>
+	<ul class="space-y-4">
+		{
+			collections.map(({ name, description }) => (
+				<li class="flex max-w-full flex-col items-start gap-x-2">
+					<div>
+						<a
+							class="site-page-link inline-block"
+							href={getNavLink("/collections/" + slugify(name) + "/")}
+							title={`View posts within collection: ${name}`}
+							data-astro-prefetch
+							aria-label={`View posts within collection: ${name}`}
+						>
+							{name}
+						</a>
+					</div>
+					{description && description.trim() !== "" && (
+						<div>
+							<q class="block italic">{description}</q>
+						</div>
+					)}
+				</li>
+			))
+		}
+	</ul>
+</PageLayout>

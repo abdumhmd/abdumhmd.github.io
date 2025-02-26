@@ -1,0 +1,59 @@
+---
+import * as interfaces from "../../lib/interfaces";
+import { filePath } from "../../lib/blog-helpers";
+import Icon from "@/components/Icon";
+import { ENABLE_LIGHTBOX } from "@/constants";
+
+export interface Props {
+	block: interfaces.Block;
+	setId?: boolean;
+}
+
+const { block, setId = true } = Astro.props;
+
+let url: URL;
+try {
+	url = new URL(block.File?.External?.Url || block.File?.File?.Url);
+} catch (err) {
+	console.error(`Invalid file URL. error: ${err}`);
+}
+const filename = decodeURIComponent(url.pathname.split("/").slice(-1)[0]);
+---
+
+<div class="file" id={setId ? block.Id : undefined}>
+	{
+		url && (
+			<div>
+				{block.File.Caption && block.File.Caption.length > 0 && block.File.Caption[0].Text.Content
+					? block.File.Caption[0].Text.Content
+					: filename}
+				{"  "}
+				<span class="border-accent-2/20 hover:border-accent/40 inline-flex max-w-full rounded-lg border p-1">
+					<a
+						href={block.File.External ? url.String() : filePath(url)}
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						<span class="site-page-link text-link inline-flex max-w-full items-center justify-center rounded-lg text-sm">
+							Download{" "}
+							<Icon name={"download"} class="inline h-4 w-4 align-sub" aria-hidden="true" />
+						</span>
+					</a>
+					{/* Conditional Preview for PDFs */}
+					{filename.endsWith(".pdf") && ENABLE_LIGHTBOX && (
+						<a
+							href={block.File.External ? url.String() : filePath(url)}
+							class="fileglightbox hidden sm:inline"
+							type="application/pdf"
+						>
+							<span class="decoration-accent-2/20 hover:decoration-accent/40 ml-2 inline-flex max-w-full items-center justify-center text-sm underline decoration-wavy">
+								Preview{" "}
+								<Icon name={"preview-pdf"} class="inline h-4 w-4 align-sub" aria-hidden="true" />
+							</span>
+						</a>
+					)}
+				</span>
+			</div>
+		)
+	}
+</div>

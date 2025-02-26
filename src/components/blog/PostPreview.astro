@@ -1,0 +1,67 @@
+---
+// import type { CollectionEntry } from "astro:content";
+// import type { HTMLTag, Polymorphic } from "astro/types";
+import type { HTMLTag } from "astro/types";
+import FormattedDate from "../FormattedDate.astro";
+import type { Post } from "src/lib/interfaces";
+import { getNotionColorToTailwindColor } from "@/lib/style-helpers";
+import { getNavLink, getPostLink } from "@/lib/blog-helpers";
+import { MENU_PAGES_COLLECTION } from "@/constants";
+import Icon from "@/components/Icon";
+import { slugify } from "@/utils";
+
+interface Props {
+	post: Post;
+	as?: HTMLTag;
+	withDesc?: boolean;
+}
+
+const { post, as: Tag = "div", withDesc = false } = Astro.props;
+const postLink = getPostLink(post.Slug, post.Collection === MENU_PAGES_COLLECTION);
+---
+
+<FormattedDate date={new Date(post.Date)} class="text-accent/90 min-w-[120px] text-xs" />
+<Tag>
+	{
+		post.Pinned && (
+			<Icon
+				class="me-1 inline-block h-6 w-6"
+				name={"pin"}
+				aria-label="Pinned Post"
+				focusable="false"
+				fill="#D50B0D"
+			/>
+		)
+	}
+
+	<a href={postLink} class="site-page-link" data-astro-prefetch>
+		{post.Title}
+	</a>
+</Tag>
+{withDesc && post.Excerpt && <q class="line-clamp-3 block italic">{post.Excerpt}</q>}
+{
+	post.Tags && post.Tags.length > 0 && (
+		<div class="mt-1">
+			<Icon
+				class="me-1 inline-block h-4 w-4"
+				name={"tag-outline"}
+				aria-hidden="true"
+				focusable="false"
+			/>
+			{post.Tags.map((tag, i) => (
+				<>
+					<a
+						class={`inline-block rounded-md px-1 text-sm ${getNotionColorToTailwindColor(
+							tag.color + "-background",
+							true,
+						)}`}
+						aria-label={`View more blogs with the tag ${tag.name}`}
+						href={getNavLink("/tags/" + slugify(tag.name) + "/")}
+					>
+						{tag.name}
+					</a>{" "}
+				</>
+			))}
+		</div>
+	)
+}

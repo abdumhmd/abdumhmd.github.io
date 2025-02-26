@@ -1,0 +1,31 @@
+---
+import AstroTweet from "./astro-tweet";
+import { FULL_WIDTH_SM } from "@/constants";
+export interface Props {
+	url: URL;
+}
+
+const { url } = Astro.props;
+
+const postURL =
+	url.hostname === "x.com" || url.hostname === "www.x.com"
+		? new URL(url.pathname, "https://twitter.com")
+		: url;
+const tweetID = postURL.pathname.split("/")[3];
+// const tweetID = postURL.toString();
+---
+
+{
+	tweetID && (
+		<>
+			<div
+				class={`no-rss ${FULL_WIDTH_SM ? "max-w-full" : "max-w-[min(420px,96%)] print:max-w-full"} mx-auto overflow-scroll`}
+			>
+				<AstroTweet id={tweetID} />
+			</div>
+			<div class="rss-only hidden">
+				{"Mentions "} <a href={`https://twitter.com/user/status/${tweetID}`}>{"tweet"}</a>
+			</div>
+		</>
+	)
+}
