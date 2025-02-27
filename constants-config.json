@@ -89,7 +89,7 @@
 				"dark": "199 200 203"
 			},
 			"accent": {
-				"light": "94 92 148",
+				"light": "106 90 205",
 				"dark": "41 188 136"
 			},
 			"accent-2": {
@@ -102,10 +102,10 @@
 			}
 		},
 		"fontfamily-google-fonts": {
-			"combined-url": "https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap",
-			"sans-font-name": "Comfortaa",
+			"combined-url": "https://fonts.googleapis.com/css2?family=Bellota+Text:ital,wght@0,400;0,700;1,400;1,700&display=swap",
+			"sans-font-name": "Bellota",
 			"serif-font-name": "",
-			"mono-font-name": "Comfortaa\\ Mono"
+			"mono-font-name": "Bellota\\ Mono"
 		}
 	},
 	"webmention": {
