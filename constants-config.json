@@ -102,7 +102,7 @@
 			}
 		},
 		"fontfamily-google-fonts": {
-			"combined-url": "https://fonts.googleapis.com/css2?family=Thasadith:ital,wght@0,400;0,700;1,400;1,700&display=swap",
+			"combined-url": "https://fonts.googleapis.com/css2?family=Thasadith:wght@700&display=swap",
 			"sans-font-name": "Thasadith",
 			"serif-font-name": "",
 			"mono-font-name": "Thasadith\\ Mono"
