@@ -1,10 +1,10 @@
 {
-	"database-id": "169b6e632b7448529120599281265ac5",
-	"author": "",
+	"database-id": "1a61f93b7cb9802da197ff3703baad20",
+	"author": "Abdu",
 	"tracking": {
 		"google-analytics": {
 			"use-ga": true,
-			"public-ga-tracking-id": ""
+			"public-ga-tracking-id": "G-VTC2REGVTV"
 		},
 		"umami": {
 			"use-umami": false,
@@ -16,13 +16,13 @@
 	"google-search-console-html-tag": "",
 	"socials": {
 		"email": "",
-		"github": "",
-		"googlescholar": "",
+		"github": "https://github.com/abdumhmd",
+		"googlescholar": "https://scholar.google.com/citations?user=ocl0aYcAAAAJ&hl=en",
 		"semanticscholar": "",
 		"dblp": "",
 		"substack": "",
 		"facebook": "",
-		"twitter": "",
+		"twitter": "https://x.com/_abdumhmd",
 		"threads": "",
 		"instagram": "",
 		"mastodon": "",
@@ -30,17 +30,17 @@
 		"calendar": "",
 		"kofi": "",
 		"buy-me-a-coffee": "",
-		"this-github-repo": "https://github.com/nerdymomocat-templates/webtrotion-astro-notion-cms-website-blog"
+		"this-github-repo": ""
 	},
 	"custom-domain": "",
 	"base-path": "",
 	"giscus": {
-		"data-repo": "nerdymomocat-templates/webtrotion-astro-notion-cms-website-blog",
-		"data-repo-id": "R_kgDOK0FuUA",
+		"data-repo": "abdumhmd/abdumhmd.github.io",
+		"data-repo-id": "R_kgDOOAHhiw",
 		"data-category": "Announcements",
-		"data-category-id": "DIC_kwDOK0FuUM4CbZ5A",
+		"data-category-id": "DIC_kwDOOAHhi84CnX1b",
 		"data-mapping": "pathname",
-		"data-input-position": "top",
+		"data-input-position": "bottom",
 		"data-reactions-enabled": true
 	},
 	"bluesky-comments": {
@@ -89,7 +89,7 @@
 				"dark": "199 200 203"
 			},
 			"accent": {
-				"light": "203 41 65",
+				"light": "106 90 205",
 				"dark": "41 188 136"
 			},
 			"accent-2": {
@@ -102,10 +102,10 @@
 			}
 		},
 		"fontfamily-google-fonts": {
-			"combined-url": "https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Roboto:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&display=swap",
-			"sans-font-name": "Roboto",
+			"combined-url": "https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&display=swap",
+			"sans-font-name": "Quicksand",
 			"serif-font-name": "",
-			"mono-font-name": "Roboto\\ Mono"
+			"mono-font-name": "Quicksand\\ Mono"
 		}
 	},
 	"webmention": {
