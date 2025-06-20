@@ -146,3 +146,15 @@ Example:
 ```
 
 This creates specialized embedding regions for different relationship types.
+
+## Comparison between Domain Features and FastRP graph embeddings
+Here are some reasons why domain features might fall short.
+- Scalability: as graphs grow, computing complex features (especially those involving multi-hop relationships or aggregations over large neighborhoods) becomes computationally expensive and difficult to maintain.
+- Coverage: Manual features often focus on direct and easily conceptualized relationships, potentially missing subtle, high-order patterns or combinations of features that are not obvious to human analysts.
+- Feature explosion: As we try to capture more nuanced behavior, the number of engineered features can grow rapidly, leading to redundancy and overfitting risks.
+But what does a graph embedding bring to the table?
+- They automatically learn dense vector representations for each node that capture both local and global graph structure and even indirect relationships. This allows models to detect fraud rings or subtle collusion patterns that manual features might miss.
+- Instead of hand-crafting dozens of features, embeddings are learned directly from the data, saving significant time and effort while capturing a broader spectrum of graph information.
+- They are a way to capture a lot of information about the graph in an unsupervised manner, without the need for time-consuming feature engineering that some of the other approaches require.
+
+Check this [link](https://www.tigergraph.com/blog/using-graph-machine-learning-to-improve-fraud-detection-rates/)
