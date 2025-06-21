@@ -158,3 +158,7 @@ But what does a graph embedding bring to the table?
 - They are a way to capture a lot of information about the graph in an unsupervised manner, without the need for time-consuming feature engineering that some of the other approaches require.
 
 Check this [link](https://www.tigergraph.com/blog/using-graph-machine-learning-to-improve-fraud-detection-rates/)
+
+Quotes
+- 'FastRP is over 4,000 times faster than state-of-the-art methods such as DeepWalk and node2vec, while achieving comparable or even better performance as evaluated on several real-world networks on various downstream tasks."
+- 
