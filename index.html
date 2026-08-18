@@ -1,0 +1,2022 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Graph Neural Networks for Financial Fraud Detection</title>
+<style>
+/* ============================= TOKENS ============================= */
+  :root{
+    --bg:#f5f5f5;
+    --surface:#ffffff;
+    --surface-2:#fbfbfa;
+    --ink:#151d27;
+    --ink-soft:#48525f;
+    --muted:#818b98;
+    --line:rgba(9,78,134,0.14);
+    --line-strong:rgba(9,78,134,0.28);
+
+    --blue-1:#094e86;
+    --blue-2:#1f5e91;
+    --blue-3:#3d81b8;
+    --pink-1:#ff5d8f;
+    --pink-2:#ff87ab;
+    --pink-3:#ffa6c1;
+
+    --blue-wash:rgba(9,78,134,0.07);
+    --pink-wash:rgba(255,93,143,0.08);
+    --neutral-dot:#8a94a3;
+    --green-1:#1e7a4c;
+    --green-wash:rgba(30,122,76,0.09);
+    --amber-1:#a1720c;
+    --amber-wash:rgba(161,114,12,0.1);
+
+    --code-bg:#0d1b2a;
+    --code-ink:#dce6f0;
+    --code-muted:#5c7996;
+
+    --font-display:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,'Times New Roman',serif;
+    --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:'SF Mono',SFMono-Regular,'Cascadia Code','Roboto Mono',Consolas,'Liberation Mono',monospace;
+
+    --shadow-card:0 1px 2px rgba(9,30,50,0.04), 0 8px 24px -12px rgba(9,30,50,0.18);
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+  ::selection{ background:var(--pink-2); color:#fff; }
+
+  h1,h2,h3{ margin:0; font-family:var(--font-display); font-weight:600; text-wrap:balance; }
+  p{ margin:0; }
+  button{ font-family:inherit; }
+
+  /* ============================= GRADIENT TEXT ============================= */
+  .grad-blue{
+    background:linear-gradient(100deg,var(--blue-1),var(--blue-2) 55%,var(--blue-3));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .grad-pink{
+    background:linear-gradient(100deg,var(--pink-1),var(--pink-2) 55%,var(--pink-3));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    font-style:italic;
+  }
+
+  /* ============================= BACKDROP TEXTURE ============================= */
+  .backdrop{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(9,78,134,0.10) 1px, transparent 0);
+    background-size:34px 34px;
+    -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 40%, black 15%, transparent 75%);
+    mask-image:radial-gradient(ellipse 80% 60% at 50% 40%, black 15%, transparent 75%);
+  }
+
+  /* ============================= DECK / SLIDES ============================= */
+  .deck{ position:relative; width:100vw; height:100vh; z-index:1; }
+
+  .slide{
+    position:absolute; inset:0;
+    display:flex; justify-content:center;
+    padding: clamp(20px,4.4vw,64px) clamp(20px,7vw,120px) clamp(78px,9vh,110px);
+    opacity:0; pointer-events:none;
+    transform:translateX(28px);
+    transition:opacity .45s ease, transform .45s ease;
+    overflow-y:auto;
+  }
+  .slide.active{ opacity:1; pointer-events:auto; transform:translateX(0); }
+  .slide.leaving-back{ transform:translateX(-28px); }
+
+  .slide-inner{ width:100%; max-width:1180px; margin:auto; }
+
+  .eyebrow{
+    font-family:var(--font-mono); font-size:.72rem; letter-spacing:.16em; font-weight:600;
+    color:var(--blue-2); text-transform:uppercase; margin-bottom:14px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{
+    content:''; width:22px; height:1.5px; background:linear-gradient(90deg,var(--pink-1),var(--blue-2));
+    display:inline-block;
+  }
+
+  .slide h1.title-grad{ font-size:clamp(2rem,4.2vw,3.4rem); line-height:1.08; letter-spacing:-.01em; }
+  .slide h2.title-grad{ font-size:clamp(1.5rem,3vw,2.35rem); line-height:1.15; letter-spacing:-.005em; margin-bottom:6px; }
+
+  .lede{ font-size:clamp(1rem,1.3vw,1.18rem); color:var(--ink-soft); max-width:64ch; line-height:1.55; margin-top:14px; }
+  .kicker{ font-size:1.02rem; color:var(--ink-soft); line-height:1.6; max-width:70ch; }
+
+  em.hl{ font-style:normal; }
+
+  /* ============================= LAYOUT HELPERS ============================= */
+  .row{ display:flex; gap:clamp(20px,3vw,44px); align-items:flex-start; }
+  .col{ flex:1; min-width:0; }
+  .grid-2{ display:grid; grid-template-columns:1.1fr .9fr; gap:clamp(20px,3vw,44px); align-items:start; }
+  .grid-2-eq{ display:grid; grid-template-columns:1fr 1fr; gap:clamp(20px,3vw,44px); align-items:start; }
+  .stack{ display:flex; flex-direction:column; gap:16px; }
+
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:clamp(16px,2vw,26px); box-shadow:var(--shadow-card);
+  }
+
+  .card h3{ font-size:1.02rem; color:var(--blue-1); margin-bottom:8px; }
+  .card p{ font-size:.94rem; color:var(--ink-soft); line-height:1.55; }
+
+  ul.clean{ list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:11px; }
+  ul.clean li{ font-size:.96rem; color:var(--ink-soft); line-height:1.55; padding-left:20px; position:relative; }
+  ul.clean li::before{
+    content:''; position:absolute; left:0; top:.5em; width:7px; height:7px; border-radius:50%;
+    background:linear-gradient(135deg,var(--pink-1),var(--blue-2));
+  }
+  ul.clean b{ color:var(--ink); font-weight:600; }
+
+  .badge{
+    display:inline-flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:.72rem;
+    letter-spacing:.04em; padding:3px 9px; border-radius:20px; font-weight:600;
+  }
+  .badge.blue{ color:var(--blue-1); background:var(--blue-wash); border:1px solid rgba(9,78,134,0.22); }
+  .badge.pink{ color:#c23566; background:var(--pink-wash); border:1px solid rgba(255,93,143,0.28); }
+  .badge.gray{ color:var(--muted); background:#f0f1f2; border:1px solid #e3e5e8; }
+  .badge.green{ color:var(--green-1); background:var(--green-wash); border:1px solid rgba(30,122,76,.25); }
+
+  /* ============================= EQUATIONS ============================= */
+  .eq-panel{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:clamp(18px,2.4vw,30px) clamp(18px,2.6vw,34px); box-shadow:var(--shadow-card);
+    overflow-x:auto;
+  }
+  .eq{
+    font-family:var(--font-display); font-size:clamp(1rem,1.7vw,1.4rem);
+    color:var(--ink); white-space:nowrap; display:flex; align-items:center; gap:.16em;
+  }
+  .eq .v{ font-style:italic; }
+  .eq .op{ font-style:normal; color:var(--blue-1); padding:0 .02em; }
+  .eq .const{ font-style:normal; color:#c23566; }
+  .eq sub, .eq sup{ font-size:.62em; }
+  .eq sub{ position:relative; top:.35em; }
+  .eq sup{ position:relative; top:-.55em; }
+  .frac{ display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle; font-size:.72em; line-height:1.05; margin:0 .12em; }
+  .frac .num{ border-bottom:1.6px solid var(--ink); padding:0 .18em .06em; }
+  .frac .den{ padding:.06em .18em 0; }
+  .bigop{ display:inline-flex; flex-direction:column; align-items:center; font-size:.5em; line-height:.95; margin:0 .06em; position:relative; top:.28em; color:var(--blue-1); }
+  .bigop .sym{ font-size:2.3em; line-height:.72; font-style:normal; }
+  .eq-caption{ margin-top:14px; font-family:var(--font-mono); font-size:.74rem; color:var(--muted); white-space:normal; }
+
+  /* function-name operator with a centered index label underneath, e.g. AGG_{r in R} */
+  .fnop{ display:inline-flex; flex-direction:column; align-items:center; font-size:.62em; line-height:1; margin:0 .1em; position:relative; top:.05em; }
+  .fnop .fname{ font-style:normal; font-variant:small-caps; letter-spacing:.03em; color:var(--blue-1); font-size:1.6em; font-weight:600; }
+  .fnop .fidx{ font-style:italic; color:var(--ink-soft); font-size:1em; margin-top:1px; }
+  .fn{ font-style:normal; font-variant:small-caps; letter-spacing:.03em; color:var(--blue-1); font-weight:600; }
+
+  /* hand-rolled radical / sqrt */
+  .radical{ display:inline-flex; align-items:flex-start; margin:0 .08em; }
+  .radical .rsym{ font-size:1.3em; line-height:1; position:relative; top:.05em; color:var(--ink); }
+  .radical .rcontent{ border-top:1.4px solid var(--ink); padding:0 .12em 0 .06em; margin-left:-.02em; }
+
+  .term-key{ display:flex; flex-wrap:wrap; gap:10px 22px; margin-top:16px; }
+  .term-key .item{ display:flex; align-items:baseline; gap:8px; font-size:.86rem; color:var(--ink-soft); }
+  .term-key .item .sym{ font-family:var(--font-display); font-style:italic; color:var(--blue-1); font-size:1.02rem; }
+
+  .callout{
+    margin-top:16px; border-left:3px solid var(--pink-1); background:var(--pink-wash);
+    border-radius:0 10px 10px 0; padding:11px 16px; font-size:.86rem; color:var(--ink-soft); line-height:1.55;
+  }
+  .callout b{ color:#c23566; }
+
+  /* ============================= CODE ============================= */
+  .code-panel{
+    background:var(--code-bg); border-radius:14px; padding:18px 20px; box-shadow:var(--shadow-card);
+    overflow-x:auto; max-height:100%;
+  }
+  .code-panel .fname{ font-family:var(--font-mono); font-size:.7rem; color:var(--code-muted); letter-spacing:.06em; margin-bottom:10px; display:flex; gap:8px; align-items:center; }
+  .code-panel .fname::before{ content:''; width:8px; height:8px; border-radius:50%; background:var(--pink-2); display:inline-block; }
+  pre.code{ margin:0; font-family:var(--font-mono); font-size:.78rem; line-height:1.62; color:var(--code-ink); }
+  .tok-kw{ color:var(--pink-2); }
+  .tok-str{ color:#9fd3ea; }
+  .tok-com{ color:var(--code-muted); font-style:italic; }
+  .tok-fn{ color:#f6c177; }
+  .tok-num{ color:#c9a7ff; }
+
+  /* ============================= TABLE ============================= */
+  .table-wrap{ overflow-x:auto; border-radius:14px; box-shadow:var(--shadow-card); }
+  table.cmp{ border-collapse:collapse; width:100%; min-width:760px; background:var(--surface); }
+  table.cmp th, table.cmp td{ text-align:left; padding:14px 18px; border-bottom:1px solid var(--line); font-size:.9rem; vertical-align:top; line-height:1.5; }
+  table.cmp thead th{
+    font-family:var(--font-mono); font-size:.7rem; letter-spacing:.07em; text-transform:uppercase;
+    color:#fff; background:linear-gradient(100deg,var(--blue-1),var(--blue-3)); border-bottom:none;
+  }
+  table.cmp thead th:first-child{ border-radius:0; }
+  table.cmp tbody th{ font-family:var(--font-body); font-weight:700; color:var(--blue-1); white-space:nowrap; background:var(--blue-wash); }
+  table.cmp tbody td{ color:var(--ink-soft); }
+  table.cmp tbody tr:last-child td, table.cmp tbody tr:last-child th{ border-bottom:none; }
+  table.cmp td b, table.cmp td .em{ color:var(--ink); }
+  .cell-tag{ display:inline-block; font-family:var(--font-mono); font-size:.68rem; padding:2px 7px; border-radius:6px; margin-bottom:5px; font-weight:700; letter-spacing:.03em; }
+  .cell-tag.bad{ background:#fde3e9; color:#b3355e; }
+  .cell-tag.mid{ background:#fff2d9; color:#a1720c; }
+  .cell-tag.good{ background:#e2f3ea; color:#1e7a4c; }
+
+  /* ============================= GRAPH WIDGET ============================= */
+  .lab{ display:grid; grid-template-columns:1.35fr 1fr; gap:22px; align-items:stretch; }
+  .lab2{ display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:stretch; }
+  .graph-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow-card); padding:16px 16px 10px; display:flex; flex-direction:column; }
+  .graph-card svg{ width:100%; height:auto; display:block; }
+  .graph-card .gc-title{ font-family:var(--font-mono); font-size:.7rem; letter-spacing:.06em; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; }
+  .legend{ display:flex; flex-wrap:wrap; gap:10px 16px; padding:12px 4px 4px; border-top:1px solid var(--line); margin-top:10px; }
+  .legend .li{ display:flex; align-items:center; gap:7px; font-size:.75rem; color:var(--ink-soft); }
+  .legend .dot{ width:11px; height:11px; border-radius:50%; border:2px solid; display:inline-block; flex-shrink:0; }
+  .legend .sq{ border-radius:2px; }
+
+  .panel-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow-card); padding:18px 20px; display:flex; flex-direction:column; gap:14px; }
+  .seg{ display:flex; background:#eef0f2; border-radius:10px; padding:3px; gap:3px; }
+  .seg button{
+    flex:1; border:none; background:transparent; padding:9px 6px; border-radius:8px; font-size:.82rem; font-weight:700;
+    color:var(--ink-soft); cursor:pointer; transition:background .2s, color .2s;
+    font-family:var(--font-body);
+  }
+  .seg button.active{ background:var(--surface); color:var(--blue-1); box-shadow:0 1px 3px rgba(9,30,50,.15); }
+  .seg button.active[data-mode="nnpu"]{ color:#c23566; }
+
+  .ctrl-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .btn{
+    border:1px solid var(--line-strong); background:var(--surface); color:var(--blue-1); font-weight:700;
+    font-size:.8rem; padding:8px 14px; border-radius:9px; cursor:pointer; transition:transform .15s, box-shadow .15s;
+    font-family:var(--font-body);
+  }
+  .btn:hover{ box-shadow:0 4px 10px -4px rgba(9,78,134,.4); transform:translateY(-1px); }
+  .btn.primary{ background:linear-gradient(100deg,var(--blue-1),var(--blue-3)); color:#fff; border-color:transparent; }
+  .btn.ghost{ color:var(--ink-soft); border-color:var(--line); }
+  .btn:disabled{ opacity:.4; cursor:default; transform:none; box-shadow:none; }
+
+  .switch-row{ display:flex; align-items:center; justify-content:space-between; font-size:.82rem; color:var(--ink-soft); gap:12px; }
+  .switch{ position:relative; width:38px; height:22px; border-radius:20px; background:#dfe3e8; cursor:pointer; transition:background .2s; flex-shrink:0; }
+  .switch::after{ content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition:transform .2s; }
+  .switch.on{ background:linear-gradient(100deg,var(--pink-1),var(--pink-3)); }
+  .switch.on::after{ transform:translateX(16px); }
+
+  .stat{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .stat .lbl{ font-size:.78rem; color:var(--ink-soft); }
+  .stat .val{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:.85rem; font-weight:700; color:var(--ink); }
+  .meter{ height:6px; border-radius:4px; background:#eceef1; overflow:hidden; position:relative; }
+  .meter > i{ display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,var(--blue-2),var(--blue-3)); width:0%; transition:width .5s ease; }
+  .meter.pink > i{ background:linear-gradient(90deg,var(--pink-1),var(--pink-3)); }
+
+  .diverge{ height:20px; border-radius:5px; background:#eceef1; position:relative; overflow:hidden; }
+  .diverge .zero{ position:absolute; left:50%; top:0; bottom:0; width:1px; background:var(--muted); opacity:.5; }
+  .diverge .bar{ position:absolute; top:2px; bottom:2px; border-radius:4px; transition:left .5s ease, width .5s ease, background .3s; }
+
+  .clamp-chip{
+    font-family:var(--font-mono); font-size:.72rem; font-weight:700; text-align:center; padding:7px 10px;
+    border-radius:8px; letter-spacing:.02em; transition:background .3s,color .3s;
+  }
+  .clamp-chip.flow{ background:var(--blue-wash); color:var(--blue-1); }
+  .clamp-chip.clamped{ background:var(--pink-wash); color:#c23566; }
+  .clamp-chip.good{ background:var(--green-wash); color:var(--green-1); }
+
+  .log{ font-family:var(--font-mono); font-size:.72rem; color:var(--muted); border-top:1px dashed var(--line); padding-top:10px; min-height:2.4em; line-height:1.5; }
+  .log b{ color:var(--ink-soft); }
+
+  .slider{ width:100%; accent-color:var(--blue-1); cursor:pointer; }
+
+  /* inspector panel (node click) */
+  .insp-empty{ color:var(--muted); font-size:.85rem; text-align:center; padding:30px 10px; line-height:1.6; }
+  .insp-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .insp-head h4{ font-family:var(--font-display); font-size:1.05rem; margin:0; }
+  .insp-feat{ display:flex; flex-direction:column; gap:7px; margin-top:4px; }
+  .insp-feat .frow{ display:flex; justify-content:space-between; font-size:.8rem; border-bottom:1px dashed var(--line); padding-bottom:6px; }
+  .insp-feat .frow .k{ color:var(--muted); }
+  .insp-feat .frow .val{ font-family:var(--font-mono); color:var(--ink); font-weight:600; }
+
+  /* pipeline (slide 9) */
+  .pipeline{ display:flex; align-items:stretch; gap:0; overflow-x:auto; padding:10px 2px 18px; }
+  .pipe-stage{ flex:1 1 0; min-width:108px; background:var(--surface); border:1.5px solid var(--line); border-radius:14px; padding:10px 8px; text-align:center; box-shadow:var(--shadow-card); transition:border-color .25s, box-shadow .25s, background .25s; position:relative; }
+  .pipe-stage.lit{ border-color:var(--blue-2); background:var(--blue-wash); box-shadow:0 0 0 3px rgba(9,78,134,.12); }
+  .pipe-stage .pname{ font-weight:700; font-size:.76rem; color:var(--ink); line-height:1.25; }
+  .pipe-stage .pdesc{ font-size:.66rem; color:var(--muted); margin-top:4px; line-height:1.35; }
+  .pipe-stage .pms{ font-family:var(--font-mono); font-size:.68rem; color:var(--blue-2); margin-top:8px; font-weight:700; opacity:0; transition:opacity .3s; }
+  .pipe-stage.lit .pms{ opacity:1; }
+  .pipe-arrow{ flex:0 0 16px; display:flex; align-items:center; justify-content:center; color:var(--line-strong); }
+  .pipe-arrow svg{ width:20px; height:14px; }
+
+  /* timeline (slide 6) */
+  .tl-wrap{ position:relative; }
+  .tl-axis{ width:100%; height:auto; display:block; }
+  .cut-readout{ font-family:var(--font-mono); font-size:.78rem; color:var(--blue-1); font-weight:700; }
+
+  /* summary jump cards */
+  .jump{ margin-top:12px; display:inline-flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:.74rem; font-weight:700; color:var(--blue-1); background:none; border:none; cursor:pointer; padding:0; }
+  .jump:hover{ text-decoration:underline; }
+  .sum-icon{ width:34px; height:34px; margin-bottom:10px; }
+
+  .tooltip-fixed{ position:fixed; z-index:50; pointer-events:none; background:var(--ink); color:#fff; font-family:var(--font-mono); font-size:.7rem; padding:6px 9px; border-radius:7px; line-height:1.45; opacity:0; transition:opacity .12s; max-width:220px; box-shadow:0 6px 18px rgba(0,0,0,.25); }
+  .tooltip-fixed.show{ opacity:1; }
+
+  /* ============================= NAV CHROME ============================= */
+  .brandmark{
+    position:fixed; top:22px; left:clamp(20px,4vw,40px); z-index:20; display:flex; align-items:center; gap:8px;
+    font-family:var(--font-mono); font-size:.72rem; letter-spacing:.08em; color:var(--blue-2); font-weight:700;
+  }
+  .brandmark .dotmark{ width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,var(--pink-1),var(--blue-1)); }
+
+  .counter{
+    position:fixed; top:22px; right:clamp(20px,4vw,40px); z-index:20;
+    font-family:var(--font-mono); font-size:.75rem; color:var(--muted); font-variant-numeric:tabular-nums;
+  }
+  .counter b{ color:var(--blue-1); }
+
+  .navbar{
+    position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:20;
+    display:flex; align-items:center; gap:16px; background:rgba(255,255,255,.86); backdrop-filter:blur(8px);
+    border:1px solid var(--line); border-radius:30px; padding:8px 10px; box-shadow:var(--shadow-card);
+  }
+  .navbtn{
+    width:34px; height:34px; border-radius:50%; border:none; background:var(--surface);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--blue-1);
+    box-shadow:0 1px 2px rgba(9,30,50,.15); transition:transform .15s, background .15s;
+  }
+  .navbtn:hover{ background:var(--blue-wash); transform:scale(1.06); }
+  .navbtn:disabled{ opacity:.3; cursor:default; transform:none; }
+  .navbtn svg{ width:15px; height:15px; }
+
+  .dots{ display:flex; gap:6px; align-items:center; }
+  .dots button{
+    width:7px; height:7px; border-radius:50%; border:none; background:#d7dbe0; cursor:pointer; padding:0;
+    transition:width .25s ease, background .25s ease;
+  }
+  .dots button.active{ width:20px; border-radius:5px; background:linear-gradient(90deg,var(--blue-2),var(--pink-1)); }
+
+  .progress-track{ position:fixed; top:0; left:0; right:0; height:3px; background:transparent; z-index:21; }
+  .progress-fill{ height:100%; background:linear-gradient(90deg,var(--blue-1),var(--pink-1)); transition:width .4s ease; }
+
+  ::-webkit-scrollbar{ width:9px; height:9px; }
+  ::-webkit-scrollbar-thumb{ background:#d6d9dd; border-radius:6px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+
+  /* ============================= RESPONSIVE ============================= */
+  @media (max-width: 880px){
+    .grid-2, .grid-2-eq, .row, .lab, .lab2{ grid-template-columns:1fr !important; flex-direction:column; }
+    .eq{ white-space:normal; }
+    table.cmp{ min-width:600px; }
+    .pipeline{ flex-direction:column; align-items:stretch; }
+    .pipe-arrow{ transform:rotate(90deg); flex:0 0 20px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .slide{ transition:opacity .15s linear !important; transform:none !important; }
+    *{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+
+  :focus-visible{ outline:2px solid var(--pink-1); outline-offset:2px; }
+
+  @keyframes popIn{ from{ transform:scale(.3); opacity:0;} to{ transform:scale(1); opacity:1;} }
+  @keyframes glowPulse{ 0%{ filter:none;} 45%{ filter:drop-shadow(0 0 7px rgba(9,78,134,.6));} 100%{ filter:none;} }
+  @keyframes glowPulsePink{ 0%{ filter:none;} 45%{ filter:drop-shadow(0 0 7px rgba(255,93,143,.7));} 100%{ filter:none;} }
+  .pulse-anim{ animation:glowPulse 1s ease; transform-origin:center; }
+  .pulse-anim-pink{ animation:glowPulsePink 1s ease; transform-origin:center; }
+  .pop-anim{ animation:popIn .45s cubic-bezier(.2,1.4,.4,1); transform-origin:center; }
+</style>
+</head>
+<body>
+
+<div class="backdrop" aria-hidden="true"></div>
+<div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+<div class="brandmark"><span class="dotmark"></span>GNN · FRAUD</div>
+<div class="counter"><b id="curNum">01</b> / <span id="totalNum">N</span></div>
+<div class="tooltip-fixed" id="tipFixed"></div>
+
+<main class="deck" id="deck">
+
+  <!-- SLIDE 1 : TITLE -->
+  <section class="slide" data-title="Overview">
+    <div class="slide-inner" style="display:flex; flex-direction:column; justify-content:center; min-height:78vh;">
+      <p class="eyebrow">Deep Learning on Heterogeneous &amp; Dynamic Graphs</p>
+      <h1 class="title-grad grad-blue" style="font-size:clamp(2.3rem,5.4vw,4.2rem);">Graph Neural Networks<br>for Financial Networks</h1>
+      <p class="lede">
+        Problem formulation, message passing, temporal dynamics, <span class="grad-pink" style="font-weight:600;">positive-unlabeled optimization</span>,
+        and production inference for Anti-Money Laundering and fraud detection at scale.
+      </p>
+      <div class="row" style="margin-top:38px; gap:14px; flex-wrap:wrap;">
+        <span class="badge blue">Heterogeneous Graphs</span>
+        <span class="badge pink">nnPU Loss</span>
+        <span class="badge blue">Temporal GNNs</span>
+        <span class="badge gray">Production Inference &lt;50ms</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 2 : PROBLEM FORMULATION -->
+  <section class="slide" data-title="Problem Formulation">
+    <div class="slide-inner">
+      <p class="eyebrow">Problem Formulation</p>
+      <h2 class="title-grad grad-blue">Binary Node Classification on a Heterogeneous Graph</h2>
+      <p class="kicker">Model the financial system as <span class="v" style="font-style:italic;">G = (V, E, T<sub>v</sub>, T<sub>e</sub>)</span> and learn to score each target entity's fraud risk. Click a node to inspect its features and label.</p>
+
+      <div class="lab" style="margin-top:20px;">
+        <div class="graph-card">
+          <div class="gc-title"><span>Target entity graph</span><span id="s2Hint">click a node to inspect</span></div>
+          <svg id="s2svg" viewBox="0 0 800 500" aria-label="heterogeneous financial graph"></svg>
+          <div class="legend" id="s2legend"></div>
+        </div>
+        <div class="panel-card" id="s2panel">
+          <div class="insp-empty">Select a node in the graph to see its feature vector and target label <span style="font-family:var(--font-mono);">y<sub>v</sub></span>.</div>
+        </div>
+      </div>
+
+      <div class="eq-panel" style="margin-top:18px;">
+        <div class="eq">
+          <span class="v">P</span><span class="op">(</span><span class="v">y</span><sub>v</sub><span class="op">=1 |</span> <span class="v">G</span><span class="op">,</span><span class="v">X</span><span class="op">) = &sigma;(</span>
+          <span class="fn">MLP</span><span class="op">(</span><span class="v">h</span><sub>v</sub><sup>(L)</sup><span class="op">))</span>
+        </div>
+        <p class="eq-caption">The posterior probability that node v is fraudulent is a sigmoid over an MLP applied to its final-layer GNN embedding.</p>
+        <div class="term-key">
+          <span class="item"><span class="sym">y<sub>v</sub> &isin; {0,1}</span> fraud label</span>
+          <span class="item"><span class="sym">h<sub>v</sub><sup>(L)</sup></span> L-th layer node embedding</span>
+          <span class="item"><span class="sym">&sigma;(&middot;)</span> sigmoid activation</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 3 : HETEROGENEOUS GRAPH CONSTRUCTION -->
+  <section class="slide" data-title="Graph Construction">
+    <div class="slide-inner">
+      <p class="eyebrow">Graph Construction</p>
+      <h2 class="title-grad grad-blue">Heterogeneous Financial Graph Construction</h2>
+      <p class="kicker">Ownership edges are static/persistent; transactional edges are dynamic, directed, and time-stamped. Toggle the relation layer below.</p>
+
+      <div class="lab" style="margin-top:18px;">
+        <div class="graph-card">
+          <div class="gc-title">
+            <span>Relation layers</span>
+            <span id="s3Hint">hover a transactional edge</span>
+          </div>
+          <div class="seg" id="s3seg" style="margin-bottom:10px;">
+            <button class="active" data-layer="all">All Relations</button>
+            <button data-layer="own">Ownership</button>
+            <button data-layer="tx">Transactional</button>
+          </div>
+          <svg id="s3svg" viewBox="0 0 800 500" aria-label="entity relation graph"></svg>
+          <div class="legend" id="s3legend"></div>
+        </div>
+        <div class="stack">
+          <div class="card">
+            <h3>Entity Nodes (V)</h3>
+            <ul class="clean">
+              <li><b>Customer</b> — KYC risk score, account creation date.</li>
+              <li><b>Account</b> — balance, avg. monthly throughput, status flags.</li>
+              <li><b>Card</b> — credit limit, issuer, tokenized ID.</li>
+              <li><b>Address / Device</b> — geolocation, hardware hash, IP history.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Edge Relations (E)</h3>
+            <ul class="clean">
+              <li><b>E<sub>own</sub></b> — OWNS, USES, REGISTERED_AT (static).</li>
+              <li><b>E<sub>tx</sub></b> — TRANSFER {amount, timestamp} (dynamic).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE : PRECOMPUTED STRUCTURAL FEATURES -->
+  <section class="slide" data-title="Structural Features">
+    <div class="slide-inner">
+      <p class="eyebrow">Feature Engineering</p>
+      <h2 class="title-grad grad-blue">Precomputed Structural Features</h2>
+      <p class="kicker">Before the first GNN layer even runs, cheap classical graph algorithms compute structural signals that get concatenated into each node's input feature vector X — the GNN then refines, not replaces, these signals.</p>
+
+      <div class="lab" style="margin-top:16px;">
+        <div class="graph-card">
+          <div class="gc-title"><span>Same graph, three feature views</span><span id="s4Hint">toggle below</span></div>
+          <div class="seg" id="s4seg" style="margin-bottom:10px;">
+            <button class="active" data-mode="labels">Fraud Labels</button>
+            <button data-mode="pagerank">PageRank</button>
+            <button data-mode="components">Connected Components</button>
+          </div>
+          <svg id="s4svg" viewBox="0 0 800 500" aria-label="precomputed structural features"></svg>
+          <div class="legend" id="s4legend"></div>
+        </div>
+        <div class="stack">
+          <div class="card">
+            <h3>PageRank / centrality</h3>
+            <p>Node size ∝ stationary visit probability under random-walk transitions. High-centrality accounts (hubs, mules) surface immediately — before any labeled example is seen.</p>
+          </div>
+          <div class="card">
+            <h3>Connected components</h3>
+            <p>Union-find over the raw graph groups entities into disjoint clusters. A component id is itself a powerful feature: <em class="hl" style="color:#c23566; font-weight:600;">Marcus &amp; Devon's cluster</em> shares an address and device with no legitimate customers in it.</p>
+          </div>
+          <div class="card">
+            <h3>Also common</h3>
+            <ul class="clean">
+              <li><b>Degree / triangle count</b> — local density, shared-neighbor fraud rings.</li>
+              <li><b>k-core number</b> — how deeply embedded in a dense subgraph.</li>
+              <li><b>Louvain community id</b> — soft clustering when components are too coarse.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 4 : MESSAGE PASSING -->
+  <section class="slide" data-title="Message Passing">
+    <div class="slide-inner">
+      <p class="eyebrow">Theory · Message Passing</p>
+      <h2 class="title-grad grad-blue">Mechanics of Message Passing</h2>
+      <p class="kicker">Every layer, the target node aggregates messages from its relational neighborhood in three stages: generate → aggregate → update.</p>
+
+      <div class="lab" style="margin-top:16px;">
+        <div class="graph-card">
+          <div class="gc-title"><span id="mpStageLabel">Stage: idle</span><span>Receptive field: <b id="mpLayerLabel">K = 0</b> hops</span></div>
+          <svg id="mpsvg" viewBox="0 0 640 340" aria-label="message passing simulator"></svg>
+        </div>
+        <div class="panel-card">
+          <div class="ctrl-row">
+            <button class="btn primary" id="mpPlay">▶ Play</button>
+            <button class="btn" id="mpStep">Step</button>
+            <button class="btn ghost" id="mpReset">Reset</button>
+          </div>
+          <div class="stack" style="gap:8px;">
+            <div class="stat"><span class="lbl">h<sub>v</sub><sup>(l)</sup> embedding (6-d)</span></div>
+            <svg id="mpEmbed" viewBox="0 0 260 60" style="width:100%; height:60px;"></svg>
+          </div>
+          <div class="log" id="mpLog">Press <b>Play</b> to watch one message-passing layer, or <b>Step</b> to advance stage-by-stage.</div>
+        </div>
+      </div>
+
+      <div class="eq-panel" style="margin-top:16px;">
+        <div class="eq">
+          <span class="v">h</span><sub>v</sub><sup>(l+1)</sup><span class="op">=</span>
+          <span class="fn">UPDATE</span><sup>(l)</sup><span class="op">(</span>
+          <span class="v">h</span><sub>v</sub><sup>(l)</sup><span class="op">,</span>
+          <span class="fnop"><span class="fname">AGG</span><span class="fidx">r&isin;R</span></span><span class="op">(</span>
+          <span class="fnop"><span class="fname">AGG</span><span class="fidx">u&isin;N<sub>r</sub>(v)</span></span>
+          <span class="fn">MSG</span><sub>r</sub><sup>(l)</sup><span class="op">(</span><span class="v">h</span><sub>u</sub><sup>(l)</sup><span class="op">,</span><span class="v">e</span><sub>u,v</sub><span class="op">)))</span>
+        </div>
+        <p class="eq-caption">Relation-specific projections W<sub>r</sub> weight each neighbor's message; K stacked layers expand the receptive field to K hops, surfacing multi-hop fraud rings.</p>
+        <div class="term-key">
+          <span class="item"><span class="sym">N<sub>r</sub>(v)</span> neighbors of v under relation r</span>
+          <span class="item"><span class="sym">&alpha;<sub>u,v</sub></span> attention weight (GAT/HAN)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 5 : TRANSDUCTIVE VS INDUCTIVE -->
+  <section class="slide" data-title="Transductive vs Inductive">
+    <div class="slide-inner">
+      <p class="eyebrow">Learning Paradigms</p>
+      <h2 class="title-grad grad-blue">Transductive vs. Inductive Graph Learning</h2>
+      <p class="kicker">Inject a brand-new, never-seen account and watch each paradigm respond.</p>
+
+      <div class="row" style="margin-top:10px; align-items:center; gap:16px; flex-wrap:wrap;">
+        <button class="btn primary" id="tiInject">+ Inject New Account</button>
+        <button class="btn ghost" id="tiReset">Reset</button>
+      </div>
+
+      <div class="lab2" style="margin-top:14px;">
+        <div class="graph-card">
+          <div class="gc-title"><span>Transductive (vanilla GCN)</span><span id="tiTransBadge" class="badge gray">idle</span></div>
+          <svg id="tiTransSvg" viewBox="0 0 320 260" aria-label="transductive graph"></svg>
+          <div class="clamp-chip flow" id="tiTransChip" style="margin-top:8px;">awaiting new node…</div>
+        </div>
+        <div class="graph-card">
+          <div class="gc-title"><span>Inductive (GraphSAGE-style)</span><span id="tiIndBadge" class="badge gray">idle</span></div>
+          <svg id="tiIndSvg" viewBox="0 0 320 260" aria-label="inductive graph"></svg>
+          <div class="clamp-chip flow" id="tiIndChip" style="margin-top:8px;">awaiting new node…</div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:18px;">
+        <div class="table-wrap">
+          <table class="cmp">
+            <thead><tr><th>Dimension</th><th>Transductive</th><th>Inductive</th></tr></thead>
+            <tbody>
+              <tr><th>Topology</th><td>Requires the full fixed graph during training.</td><td>Learns aggregator functions that generalize to unseen subgraphs.</td></tr>
+              <tr><th>Unseen nodes</th><td><span class="cell-tag bad">Fails</span>Cannot embed new accounts without retraining.</td><td><span class="cell-tag good">Handles</span>Generates embeddings on-the-fly via sampling.</td></tr>
+              <tr><th>Scalability</th><td>Full adjacency in GPU memory — O(|V|).</td><td>Fixed-size neighborhood sampling — O(B·&prod;S<sub>l</sub>).</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="code-panel">
+          <div class="fname">graphsage_forward.py</div>
+          <pre class="code" id="codeSage"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 6 : TEMPORAL SPLITTING -->
+  <section class="slide" data-title="Temporal Splitting">
+    <div class="slide-inner">
+      <p class="eyebrow">Data Splitting</p>
+      <h2 class="title-grad grad-blue">Leakage-Free Temporal Train / Test Splitting</h2>
+      <p class="kicker">Random node splits let test-set neighbors leak into training via message passing. Strict temporal cutoffs prune future edges entirely.</p>
+
+      <div class="graph-card" style="margin-top:16px;">
+        <div class="seg" id="splitSeg" style="max-width:360px; margin-bottom:14px;">
+          <button data-mode="random">Random Split (flawed)</button>
+          <button class="active" data-mode="temporal">Temporal Cutoff (correct)</button>
+        </div>
+        <div class="tl-wrap">
+          <svg id="tlsvg" class="tl-axis" viewBox="0 0 1000 220" aria-label="temporal timeline"></svg>
+        </div>
+        <div class="row" id="tlScrubRow" style="align-items:center; gap:14px; margin-top:6px;">
+          <span style="font-size:.78rem; color:var(--ink-soft); white-space:nowrap;">t<sub>0</sub></span>
+          <input type="range" class="slider" id="tlSlider" min="0" max="100" value="55">
+          <span style="font-size:.78rem; color:var(--ink-soft); white-space:nowrap;">t<sub>max</sub></span>
+          <span class="cut-readout" id="tlReadout">T_cut = 55</span>
+        </div>
+        <div class="callout" id="tlCallout" style="display:none;"><b>Data leakage —</b> pink connectors show a "future" test transaction reaching back to influence a training-set node's embedding through multi-hop message passing, inflating offline metrics.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 7 : TEMPORAL INFORMATION -->
+  <section class="slide" data-title="Temporal Dynamics">
+    <div class="slide-inner">
+      <p class="eyebrow">Temporal Dynamics</p>
+      <h2 class="title-grad grad-blue">Utilizing Temporal Information</h2>
+      <p class="kicker">Continuous-time encodings and node memory let TGN / DySAT-style models react to velocity bursts and dormant-account reactivation.</p>
+
+      <div class="lab" style="margin-top:14px;">
+        <div class="graph-card">
+          <div class="gc-title"><span>Fourier time encoding &Phi;(&Delta;t)</span><span id="fourierVal">&Delta;t = 30</span></div>
+          <svg id="fouriersvg" viewBox="0 0 620 220" aria-label="fourier time encoding plot"></svg>
+          <input type="range" class="slider" id="dtSlider" min="0" max="100" value="30" style="margin-top:6px;">
+        </div>
+        <div class="panel-card">
+          <h3 style="font-size:.95rem; color:var(--blue-1);">Node memory s<sub>v</sub>(t)</h3>
+          <svg id="memsvg" viewBox="0 0 260 60" style="width:100%; height:60px;"></svg>
+          <div class="ctrl-row">
+            <button class="btn primary" id="memPlay">▶ Replay Events</button>
+            <button class="btn ghost" id="memReset">Reset</button>
+          </div>
+          <div class="log" id="memLog">Sequential GRU-style memory updates on each incoming transaction event.</div>
+        </div>
+      </div>
+
+      <div class="eq-panel" style="margin-top:14px;">
+        <div class="eq">
+          <span class="v">&Phi;</span><span class="op">(&Delta;t) =</span>
+          <span class="radical"><span class="rsym">&radic;</span><span class="rcontent"><span class="frac"><span class="num">2</span><span class="den">d</span></span></span></span>
+          <span class="op">[cos(&omega;<sub>1</sub>&Delta;t+&phi;<sub>1</sub>), &hellip;, cos(&omega;<sub>d</sub>&Delta;t+&phi;<sub>d</sub>)]</span>
+        </div>
+        <p class="eq-caption">Transaction age &Delta;t = t<sub>current</sub> − t<sub>tx</sub> is mapped through learnable cosine bases, giving the model a continuous notion of recency.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE : TEMPORAL GNN VS INDUCTIVE + TEMPORAL EDGE FEATURES -->
+  <section class="slide" data-title="Temporal Architecture Choice">
+    <div class="slide-inner">
+      <p class="eyebrow">Architecture Choice</p>
+      <h2 class="title-grad grad-blue">Temporal GNN vs. Inductive GNN + Temporal Edge Features</h2>
+      <p class="kicker">Two ways to make a GNN time-aware — a stateful temporal architecture, or a stateless inductive model that simply treats &Delta;t as another edge attribute.</p>
+
+      <div class="seg" id="archSeg" style="max-width:460px; margin-top:14px;">
+        <button class="active" data-mode="tgn">Temporal GNN (TGN-style)</button>
+        <button data-mode="edgefeat">Inductive + &Delta;t Edge Feature</button>
+      </div>
+
+      <div class="grid-2" style="margin-top:16px; align-items:stretch;">
+        <div class="eq-panel" id="archEqPanel"></div>
+        <div class="panel-card">
+          <div id="archFlow" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;"></div>
+          <div class="callout" id="archNote" style="margin-top:0;"></div>
+        </div>
+      </div>
+
+      <div class="table-wrap" style="margin-top:16px;">
+        <table class="cmp">
+          <thead><tr><th>Dimension</th><th>Temporal GNN (TGN / DySAT)</th><th>Inductive GNN + &Delta;t edge feature</th></tr></thead>
+          <tbody>
+            <tr><th>State</th><td>Persistent per-node memory s<sub>v</sub>(t), updated on every event.</td><td>Stateless — recomputed fresh from sampled neighbors each call.</td></tr>
+            <tr><th>Update trigger</th><td>Event-driven memory update (GRU/RNN) between messages.</td><td>None — &Phi;(&Delta;t) is concatenated into the message like any other feature.</td></tr>
+            <tr><th>Irregular gaps</th><td><span class="cell-tag good">Strong</span>Explicitly models elapsed time between events.</td><td><span class="cell-tag mid">Weaker</span>Captures per-edge recency, no long-range memory of dormancy.</td></tr>
+            <tr><th>Serving cost</th><td>Must fetch and update a memory store per node — extra state to serve.</td><td><span class="cell-tag good">Simpler</span>Fits the same stateless k-hop sampler as GraphSAGE.</td></tr>
+            <tr><th>Best for</th><td>Slow-building patterns: dormant reactivation, velocity drift.</td><td>Point-in-time scoring where &Delta;t on each edge is signal enough.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 8 : BCE vs nnPU -->
+  <section class="slide" data-title="BCE vs nnPU">
+    <div class="slide-inner">
+      <p class="eyebrow">Loss Optimization</p>
+      <h2 class="title-grad grad-blue">BCE Loss vs. Non-Negative PU Loss</h2>
+      <p class="kicker">With &lt;0.1% confirmed labels, "unlabeled" is really a mixture of legitimate entities and undetected fraud. Standard BCE punishes the model for finding it.</p>
+
+      <div class="lab" style="margin-top:14px;">
+        <div class="graph-card">
+          <div class="gc-title"><span>Positive vs. Unlabeled distribution</span><span id="puHint">toggle loss →</span></div>
+          <svg id="pusvg" viewBox="0 0 560 300" aria-label="PU scatter plot"></svg>
+          <div class="legend" id="pulegend"></div>
+        </div>
+        <div class="panel-card">
+          <div class="seg" id="lossSeg">
+            <button class="active" data-mode="bce">BCE Loss</button>
+            <button data-mode="nnpu">nnPU Loss</button>
+          </div>
+          <div id="bcePanel">
+            <div class="eq" style="font-size:1.05rem;"><span class="v">L</span><sub>BCE</sub><span class="op">= −y log(&#375;) − (1−y) log(1−&#375;)</span></div>
+            <p class="eq-caption" style="margin-top:8px;">Treats every unlabeled node as a confirmed true negative — gradients actively push hidden fraud toward y&#770;=0.</p>
+          </div>
+          <div id="nnpuPanel" style="display:none;">
+            <div class="stat"><span class="lbl">prior &pi; = P(Y=1)</span><span class="val" id="piVal">0.20</span></div>
+            <input type="range" class="slider" id="piSlider" min="1" max="60" value="20">
+            <div class="stat" style="margin-top:10px;"><span class="lbl">R&#770;<sub>u</sub><sup>−</sup> − &pi;R&#770;<sub>p</sub><sup>−</sup></span></div>
+            <div class="diverge" style="margin-top:4px;"><div class="zero"></div><div class="bar" id="nnpuBar"></div></div>
+            <div class="clamp-chip flow" id="nnpuChip" style="margin-top:10px;">flowing — negative risk stays positive</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:16px;">
+        <div class="eq-panel">
+          <div class="eq">
+            <span class="v">R&#770;</span><sub>pu</sub><span class="op">(g) = &pi;R&#770;</span><sub>p</sub><sup>+</sup>
+            <span class="op">+ max(0, R&#770;</span><sub>u</sub><sup>−</sup><span class="op">− &pi;R&#770;</span><sub>p</sub><sup>−</sup><span class="op">)</span>
+          </div>
+          <p class="eq-caption">The non-negative correction clips the empirical negative risk at zero, eliminating gradient corruption from mislabeled unlabeled fraud.</p>
+        </div>
+        <div class="code-panel">
+          <div class="fname">nnpu_loss.py</div>
+          <pre class="code" id="codeNnpu"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 9 : PRODUCTION ARCHITECTURE -->
+  <section class="slide" data-title="Production Architecture">
+    <div class="slide-inner">
+      <p class="eyebrow">Production Systems</p>
+      <h2 class="title-grad grad-blue">Real-Time vs. Batch Inference</h2>
+      <p class="kicker">The same trained GNN serves two very different pipelines: per-transaction scoring under a hard latency SLA, and nightly batch scoring over the whole ledger for retrospective AML sweeps.</p>
+
+      <div class="seg" id="infModeSeg" style="max-width:420px; margin-top:8px;">
+        <button class="active" data-mode="realtime">Real-Time (per-transaction)</button>
+        <button data-mode="batch">Batch (nightly scoring)</button>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="pipeline" id="pipeline"></div>
+        <div class="row" style="align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-top:6px;">
+          <div class="ctrl-row">
+            <button class="btn primary" id="pipePlay">▶ Run Transaction</button>
+            <button class="btn ghost" id="pipeReset">Reset</button>
+          </div>
+          <div class="switch-row" style="width:auto;">
+            <span id="coldLabel">Simulate cold feature-store cache (+15ms)</span>
+            <div class="switch" id="coldSwitch" role="switch" aria-checked="false" tabindex="0"></div>
+          </div>
+          <div class="stat" style="min-width:170px;">
+            <span class="lbl" id="latLabel">Elapsed latency</span>
+            <span class="val" id="latVal">0 ms</span>
+          </div>
+        </div>
+        <div class="clamp-chip flow" id="slaChip" style="margin-top:10px;">awaiting transaction…</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 10 : SUBGRAPH SAMPLING -->
+  <section class="slide" data-title="Subgraph Sampling">
+    <div class="slide-inner">
+      <p class="eyebrow">Inference Pipeline</p>
+      <h2 class="title-grad grad-blue">On-the-Fly Subgraph Sampling &amp; Serving</h2>
+      <p class="kicker">A transaction request pulls a bounded k-hop neighborhood — S<sub>1</sub>=6 shown, S<sub>2</sub>=3 shown — never the full graph.</p>
+
+      <div class="lab" style="margin-top:14px;">
+        <div class="graph-card">
+          <div class="gc-title"><span>Bounded computation subgraph</span><span id="s10Hint">grey = not sampled</span></div>
+          <svg id="s10svg" viewBox="0 0 680 440" aria-label="subgraph sampling"></svg>
+        </div>
+        <div class="panel-card">
+          <div class="ctrl-row">
+            <button class="btn primary" id="s10Play">▶ Run Inductive Forward Pass</button>
+            <button class="btn ghost" id="s10Reset">Reset</button>
+          </div>
+          <div class="stat"><span class="lbl">P(Fraud | subgraph)</span><span class="val" id="s10ScoreVal">—</span></div>
+          <div class="meter pink" style="margin-top:2px;"><i id="s10Meter"></i></div>
+          <div class="log" id="s10Log">No global graph load — bounded memory, bounded latency.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 11 : SUMMARY -->
+  <section class="slide" data-title="Summary">
+    <div class="slide-inner">
+      <p class="eyebrow">Summary</p>
+      <h2 class="title-grad grad-blue">Key Takeaways for Deployment</h2>
+
+      <div class="lab2" style="grid-template-columns:1fr 1fr 1fr; margin-top:20px;">
+        <div class="card">
+          <svg class="sum-icon" viewBox="0 0 34 34"><circle cx="9" cy="9" r="4" fill="none" stroke="var(--blue-1)" stroke-width="2"/><rect x="19" y="19" width="9" height="9" rx="2" fill="none" stroke="var(--pink-1)" stroke-width="2"/><line x1="12" y1="12" x2="20" y2="20" stroke="var(--muted)" stroke-width="1.6"/></svg>
+          <h3>Heterogeneous &amp; Inductive</h3>
+          <p>Combine ownership edges with dynamic flows using inductive GNNs (GraphSAGE/GAT) so unseen entities score instantly.</p>
+          <button class="jump" data-goto="4">↳ Revisit message passing</button>
+        </div>
+        <div class="card">
+          <svg class="sum-icon" viewBox="0 0 34 34"><circle cx="17" cy="17" r="4" fill="var(--pink-1)"/><circle cx="6" cy="8" r="3" fill="none" stroke="var(--green-1)" stroke-width="1.8"/><circle cx="28" cy="8" r="3" fill="none" stroke="var(--green-1)" stroke-width="1.8"/><circle cx="6" cy="27" r="3" fill="none" stroke="var(--amber-1)" stroke-width="1.8"/></svg>
+          <h3>Precompute Structural Signals</h3>
+          <p>PageRank, connected components, and degree land in X before layer one — cheap signal the GNN then refines.</p>
+          <button class="jump" data-goto="3">↳ Revisit precomputed features</button>
+        </div>
+        <div class="card">
+          <svg class="sum-icon" viewBox="0 0 34 34"><line x1="3" y1="17" x2="31" y2="17" stroke="var(--blue-1)" stroke-width="2"/><circle cx="19" cy="17" r="3" fill="var(--pink-1)"/><line x1="19" y1="17" x2="31" y2="17" stroke="var(--pink-1)" stroke-width="3" stroke-dasharray="2 2"/></svg>
+          <h3>Strict Temporal Guardrails</h3>
+          <p>Validate exclusively with temporal cutoff splits — random node splits leak future information into training.</p>
+          <button class="jump" data-goto="6">↳ Revisit temporal splitting</button>
+        </div>
+        <div class="card">
+          <svg class="sum-icon" viewBox="0 0 34 34"><rect x="4" y="14" width="8" height="8" rx="2" fill="none" stroke="var(--blue-1)" stroke-width="2"/><path d="M16 18h6M16 18l4-4M16 18l4 4" fill="none" stroke="var(--muted)" stroke-width="1.6"/><circle cx="27" cy="18" r="4" fill="none" stroke="var(--pink-1)" stroke-width="2"/></svg>
+          <h3>Match Architecture to Time Signal</h3>
+          <p>Stateful TGN memory for slow-building patterns; a simple &Delta;t edge feature when per-event recency is enough.</p>
+          <button class="jump" data-goto="8">↳ Revisit architecture choice</button>
+        </div>
+        <div class="card">
+          <svg class="sum-icon" viewBox="0 0 34 34"><circle cx="12" cy="17" r="8" fill="none" stroke="var(--pink-1)" stroke-width="2"/><circle cx="22" cy="17" r="8" fill="none" stroke="var(--blue-1)" stroke-width="2"/></svg>
+          <h3>PU Learning Optimization</h3>
+          <p>Replace BCE with nnPU loss to overcome severe unflagged-fraud noise and recover hidden laundering rings.</p>
+          <button class="jump" data-goto="9">↳ Revisit nnPU loss</button>
+        </div>
+        <div class="card">
+          <svg class="sum-icon" viewBox="0 0 34 34"><rect x="3" y="13" width="7" height="7" rx="1.5" fill="none" stroke="var(--blue-1)" stroke-width="2"/><rect x="14" y="13" width="7" height="7" rx="1.5" fill="none" stroke="var(--blue-1)" stroke-width="2"/><rect x="25" y="13" width="6" height="7" rx="1.5" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="2 2"/></svg>
+          <h3>Bounded Subgraph Serving</h3>
+          <p>Stream in-memory graph engines that sample k-hop subgraphs on-the-fly for real-time scoring, batch for full-ledger sweeps.</p>
+          <button class="jump" data-goto="10">↳ Revisit real-time vs batch</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<nav class="navbar" aria-label="Slide navigation">
+  <button class="navbtn" id="prevBtn" aria-label="Previous slide">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <div class="dots" id="dots"></div>
+  <button class="navbtn" id="nextBtn" aria-label="Next slide">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+</nav>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================= SLIDE ENGINE (reusable verbatim) ============================= */
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var idx = 0;
+
+  var dotsEl = document.getElementById('dots');
+  var curNumEl = document.getElementById('curNum');
+  var totalNumEl = document.getElementById('totalNum');
+  var progressFill = document.getElementById('progressFill');
+  var prevBtn = document.getElementById('prevBtn');
+  var nextBtn = document.getElementById('nextBtn');
+
+  totalNumEl.textContent = String(total).padStart(2,'0');
+
+  slides.forEach(function(_, i){
+    var b = document.createElement('button');
+    b.setAttribute('aria-label', 'Go to slide ' + (i+1));
+    b.addEventListener('click', function(){ goTo(i); });
+    dotsEl.appendChild(b);
+  });
+  var dotEls = Array.prototype.slice.call(dotsEl.children);
+
+  function render(){
+    slides.forEach(function(s, i){ s.classList.toggle('active', i === idx); });
+    dotEls.forEach(function(d, i){ d.classList.toggle('active', i === idx); });
+    curNumEl.textContent = String(idx+1).padStart(2,'0');
+    progressFill.style.width = (((idx+1)/total)*100) + '%';
+    prevBtn.disabled = idx === 0;
+    nextBtn.disabled = idx === total-1;
+  }
+
+  function goTo(n){ idx = Math.max(0, Math.min(total-1, n)); render(); }
+  function next(){ if(idx < total-1) goTo(idx+1); }
+  function prev(){ if(idx > 0) goTo(idx-1); }
+  window.__deckGoTo = goTo;
+
+  prevBtn.addEventListener('click', prev);
+  nextBtn.addEventListener('click', next);
+
+  document.addEventListener('keydown', function(e){
+    var active = document.activeElement;
+    var tag = active && active.tagName;
+    var isControl = tag === 'BUTTON' || tag === 'INPUT' || tag === 'TEXTAREA' ||
+      (active && active.getAttribute && active.getAttribute('role') === 'switch');
+    if (e.key === ' ' && isControl) return;
+
+    if (['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)) { e.preventDefault(); next(); }
+    else if (['ArrowLeft','ArrowUp','PageUp'].includes(e.key)) { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+    else if (e.key === 'End') { e.preventDefault(); goTo(total-1); }
+  });
+
+  var touchStartX = null;
+  document.addEventListener('touchstart', function(e){ touchStartX = e.touches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if (touchStartX === null) return;
+    var dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 60) { dx < 0 ? next() : prev(); }
+    touchStartX = null;
+  }, {passive:true});
+
+  render();
+
+  Array.prototype.slice.call(document.querySelectorAll('.jump')).forEach(function(b){
+    b.addEventListener('click', function(){ goTo(parseInt(b.getAttribute('data-goto'),10)); });
+  });
+
+  /* ============================= DECK-SPECIFIC JS GOES BELOW THIS LINE ============================= */
+
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  function se(tag, attrs){
+    var el = document.createElementNS(SVGNS, tag);
+    for (var k in attrs){ el.setAttribute(k, attrs[k]); }
+    return el;
+  }
+  function mulberry32(seed){
+    return function(){
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function hashOffset(str, maxAbs){
+    var h = 0;
+    for (var i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) | 0; }
+    var frac = (((h % 1000) + 1000) % 1000) / 1000;
+    var sign = (h & 1) ? 1 : -1;
+    var minAbs = maxAbs * 0.5; // never let an edge go near-straight through an intermediate node
+    return sign * (minAbs + frac * (maxAbs - minAbs));
+  }
+  function curvePath(sx, sy, tx, ty, offset){
+    var dx = tx-sx, dy = ty-sy;
+    var len = Math.sqrt(dx*dx+dy*dy) || 1;
+    var nx = -dy/len, ny = dx/len;
+    // control point uses 2x offset so the curve's actual peak displacement (reached at t=0.5,
+    // which is only half the control-point offset for a quadratic bezier) equals `offset`.
+    var mx = (sx+tx)/2 + nx*offset*2, my = (sy+ty)/2 + ny*offset*2;
+    return 'M'+sx+','+sy+' Q'+mx+','+my+' '+tx+','+ty;
+  }
+  function ringLayout(cx, cy, r, n, startAngle){
+    startAngle = startAngle == null ? -Math.PI/2 : startAngle;
+    var out = [];
+    for (var i=0;i<n;i++){
+      var a = startAngle + (2*Math.PI*i/n);
+      out.push({ px: cx + r*Math.cos(a), py: cy + r*Math.sin(a) });
+    }
+    return out;
+  }
+  var tipEl = document.getElementById('tipFixed');
+  function showTip(x, y, html){
+    tipEl.innerHTML = html;
+    tipEl.style.left = (x+14)+'px';
+    tipEl.style.top = (y+14)+'px';
+    tipEl.classList.add('show');
+  }
+  function hideTip(){ tipEl.classList.remove('show'); }
+
+  /* hand-rolled code tokenizer (no external syntax-highlighting library) */
+  function hi(src){
+    var esc = src.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return esc.split('\n').map(function(line){
+      var idx = line.indexOf('#');
+      var code = idx>=0 ? line.slice(0,idx) : line;
+      var comment = idx>=0 ? line.slice(idx) : '';
+      code = code.replace(/('.*?'|".*?")/g, '<span class="tok-str">$1</span>');
+      code = code.replace(/\b(def|return|if|else|elif|for|in|import|class|True|False|None)\b/g, '<span class="tok-kw">$1</span>');
+      code = code.replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\()/g, '<span class="tok-fn">$1</span>');
+      code = code.replace(/\b(\d+\.?\d*)\b/g, '<span class="tok-num">$1</span>');
+      if (comment) comment = '<span class="tok-com">'+comment+'</span>';
+      return code + comment;
+    }).join('\n');
+  }
+
+  /* ============================= HETEROGENEOUS GRAPH RENDERER (shared: slides 2, 3, 5, 10) ============================= */
+  var TYPE_CFG = {
+    cust: { shape:'circle', size:26, label:'Customer · circle' },
+    acc:  { shape:'rect',   size:24, label:'Account · square' },
+    card: { shape:'diamond',size:22, label:'Card · diamond' },
+    addr: { shape:'triangle',size:24,label:'Address · triangle' },
+    dev:  { shape:'hex',    size:22, label:'Device · hexagon' }
+  };
+
+  function shapePoints(shape, cx, cy, size){
+    if (shape==='diamond'){
+      var h = size*0.62;
+      return [[cx,cy-h],[cx+h,cy],[cx,cy+h],[cx-h,cy]];
+    }
+    if (shape==='triangle'){
+      var s = size*0.62;
+      return [[cx,cy-s],[cx-s*0.95,cy+s*0.72],[cx+s*0.95,cy+s*0.72]];
+    }
+    if (shape==='hex'){
+      var pts=[]; var r=size*0.58;
+      for (var i=0;i<6;i++){ var a=Math.PI/180*(60*i); pts.push([cx+r*Math.cos(a), cy+r*Math.sin(a)]); }
+      return pts;
+    }
+    return null;
+  }
+  function ptsAttr(pts){ return pts.map(function(p){ return p[0]+','+p[1]; }).join(' '); }
+
+  function nodeVisual(n){
+    var pending = !!n.pending;
+    var sampled = n.sampled !== false;
+    var stroke, fill;
+    if (!sampled){ stroke = '#c7ccd3'; fill = '#f3f4f6'; }
+    else if (pending){ stroke = '#b7bec8'; fill = '#ffffff'; }
+    else if (n.y === 1){ stroke = 'var(--pink-1)'; fill = 'var(--pink-wash)'; }
+    else if (n.y === 0){ stroke = 'var(--blue-1)'; fill = 'var(--blue-wash)'; }
+    else { stroke = 'var(--neutral-dot)'; fill = '#ffffff'; }
+    return { stroke: stroke, fill: fill };
+  }
+
+  function buildNodeGroup(n, opts){
+    var cfg = TYPE_CFG[n.type];
+    var vis = nodeVisual(n);
+    var scale = (opts.sizeScale && opts.sizeScale[n.id]) || 1;
+    var size = cfg.size * scale;
+    var g = se('g', { 'data-id': n.id });
+    g.style.cursor = opts.interactive ? 'pointer' : 'default';
+
+    if (opts.targetId && n.id === opts.targetId){
+      var ring = se('circle', { cx:n.px, cy:n.py, r:(size*0.62)+9, fill:'none', stroke:'var(--blue-2)', 'stroke-width':1.6, 'stroke-dasharray':'3 3', opacity:.7 });
+      g.appendChild(ring);
+    }
+    if (opts.ringColors && opts.ringColors[n.id]){
+      var cring = se('circle', { cx:n.px, cy:n.py, r:(size*0.62)+7, fill:'none', stroke:opts.ringColors[n.id], 'stroke-width':2.4 });
+      g.appendChild(cring);
+    }
+
+    var shapeEl;
+    if (cfg.shape === 'circle'){
+      shapeEl = se('circle', { cx:n.px, cy:n.py, r:size*0.5 });
+    } else if (cfg.shape === 'rect'){
+      shapeEl = se('rect', { x:n.px-size/2, y:n.py-size/2, width:size, height:size, rx:4 });
+    } else {
+      shapeEl = se('polygon', { points: ptsAttr(shapePoints(cfg.shape, n.px, n.py, size)) });
+    }
+    shapeEl.setAttribute('fill', vis.fill);
+    shapeEl.setAttribute('stroke', vis.stroke);
+    shapeEl.setAttribute('stroke-width', (n.id === opts.selectedId) ? 3.4 : 2.1);
+    if (pendingDash(n)) shapeEl.setAttribute('stroke-dasharray', '4 3');
+    g.appendChild(shapeEl);
+
+    if (n.pending){
+      var q = se('text', { x:n.px, y:n.py+4, 'text-anchor':'middle', 'font-family':'var(--font-mono)', 'font-size':13, 'font-weight':700, fill:'var(--muted)' });
+      q.textContent = '?';
+      g.appendChild(q);
+    }
+
+    var label = se('text', {
+      x:n.px, y:n.py + size*0.5 + 13, 'text-anchor':'middle',
+      'font-family':'var(--font-mono)', 'font-size':9.5, fill:'var(--ink-soft)'
+    });
+    label.textContent = n.name;
+    g.appendChild(label);
+
+    if (opts.badge && opts.badge[n.id] != null){
+      var bd = se('text', {
+        x:n.px, y:n.py + size*0.5 + 25, 'text-anchor':'middle',
+        'font-family':'var(--font-mono)', 'font-size':9, 'font-weight':700, fill:'var(--blue-1)'
+      });
+      bd.textContent = opts.badge[n.id];
+      g.appendChild(bd);
+    }
+
+    if (opts.interactive && opts.onSelect){
+      g.addEventListener('click', function(){ opts.onSelect(n); });
+    }
+    if (n.pop){ g.classList.add('pop-anim'); }
+    if (n.glow){ g.classList.add(n.glow === 'pink' ? 'pulse-anim-pink' : 'pulse-anim'); }
+    return g;
+  }
+  function pendingDash(n){ return !!n.pending; }
+
+  function edgeCategory(e){ return e.rel === 'tx' ? 'tx' : 'own'; }
+
+  function renderGraph(svgId, nodes, edges, opts){
+    opts = opts || {};
+    var svg = document.getElementById(svgId);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    var markerId = svgId + '-arrow';
+    var defs = se('defs', {});
+    var marker = se('marker', { id:markerId, viewBox:'0 0 10 10', refX:9, refY:5, markerWidth:6, markerHeight:6, orient:'auto-start-reverse' });
+    marker.appendChild(se('path', { d:'M0,0 L10,5 L0,10 z', fill:'var(--pink-2)' }));
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+
+    var byId = {}; nodes.forEach(function(n){ byId[n.id]=n; });
+
+    var edgeLayer = se('g', {});
+    edges.forEach(function(e){
+      var cat = edgeCategory(e);
+      if (opts.layer && opts.layer !== 'all' && opts.layer !== cat) return;
+      var s = byId[e.source], t = byId[e.target];
+      if (!s || !t) return;
+      var dim = (s.sampled === false || t.sampled === false);
+      var offset = hashOffset(e.source+'>'+e.target, cat==='tx' ? 30 : 20);
+      var d = curvePath(s.px, s.py, t.px, t.py, offset);
+      var path = se('path', {
+        d:d, fill:'none',
+        stroke: dim ? '#d4d8dd' : (cat === 'tx' ? 'var(--pink-2)' : 'var(--line-strong)'),
+        'stroke-width': cat === 'tx' ? 2 : 1.6
+      });
+      if (cat === 'tx'){
+        path.setAttribute('stroke-dasharray','5 4');
+        if (!dim) path.setAttribute('marker-end','url(#'+markerId+')');
+      }
+      edgeLayer.appendChild(path);
+      if (cat === 'tx' && e.amount && opts.edgeHover !== false){
+        var hit = se('path', { d:d, fill:'none', stroke:'transparent', 'stroke-width':12 });
+        hit.style.cursor = 'help';
+        hit.addEventListener('mousemove', function(ev){
+          showTip(ev.clientX, ev.clientY, '<b>'+e.amount+'</b><br>'+e.ts+'<br>TRANSFER '+e.source+' → '+e.target);
+        });
+        hit.addEventListener('mouseleave', hideTip);
+        edgeLayer.appendChild(hit);
+      }
+    });
+    svg.appendChild(edgeLayer);
+
+    var nodeLayer = se('g', {});
+    nodes.forEach(function(n){ nodeLayer.appendChild(buildNodeGroup(n, opts)); });
+    svg.appendChild(nodeLayer);
+  }
+
+  function renderTypeLegend(elId){
+    var el = document.getElementById(elId);
+    el.innerHTML = '';
+    var items = [
+      { label:'Customer · circle' }, { label:'Account · square' }, { label:'Card · diamond' },
+      { label:'Address · triangle' }, { label:'Device · hexagon' }
+    ];
+    items.forEach(function(it){
+      var d = document.createElement('div'); d.className='li';
+      d.innerHTML = '<span class="dot" style="border-color:var(--neutral-dot); background:#fff;"></span>'+it.label;
+      el.appendChild(d);
+    });
+    var flags = [
+      { label:'Fraud flagged (y=1)', color:'var(--pink-1)', fill:'var(--pink-wash)' },
+      { label:'Legitimate (y=0)', color:'var(--blue-1)', fill:'var(--blue-wash)' },
+      { label:'Unlabeled entity', color:'var(--neutral-dot)', fill:'#fff' }
+    ];
+    flags.forEach(function(f){
+      var d = document.createElement('div'); d.className='li';
+      d.innerHTML = '<span class="dot" style="border-color:'+f.color+'; background:'+f.fill+';"></span>'+f.label;
+      el.appendChild(d);
+    });
+  }
+
+  /* ---------- Slide 2 & 3 dataset ---------- */
+  var MAIN_NODES = [
+    { id:'cust1', type:'cust', name:'Alice R.', px:100, py:90,  y:0, feat:{ 'KYC score':'0.92 (low risk)', 'Account age':'4.2 yrs' } },
+    { id:'cust2', type:'cust', name:'Marcus T.', px:100, py:220, y:1, feat:{ 'KYC score':'0.31 (high risk)', 'Account age':'11 days' } },
+    { id:'cust3', type:'cust', name:'Priya S.', px:100, py:340, y:0, feat:{ 'KYC score':'0.88 (low risk)', 'Account age':'2.7 yrs' } },
+    { id:'cust4', type:'cust', name:'Devon K.', px:100, py:440, y:1, feat:{ 'KYC score':'0.27 (high risk)', 'Account age':'9 days' } },
+    { id:'acc1', type:'acc', name:'Acct •1092', px:330, py:70,  y:0, feat:{ 'Balance':'$8,410', 'Throughput':'$2.1k/mo', 'Status':'active' } },
+    { id:'acc2', type:'acc', name:'Acct •4471', px:410, py:220, y:1, feat:{ 'Balance':'$120', 'Throughput':'$41k/mo', 'Status':'flagged' } },
+    { id:'acc3', type:'acc', name:'Acct •7723', px:330, py:340, y:0, feat:{ 'Balance':'$15,900', 'Throughput':'$3.4k/mo', 'Status':'active' } },
+    { id:'acc4', type:'acc', name:'Acct •9930', px:410, py:440, y:1, feat:{ 'Balance':'$60', 'Throughput':'$38k/mo', 'Status':'flagged' } },
+    { id:'acc5', type:'acc', name:'Acct •0007', px:560, py:270, y:1, feat:{ 'Balance':'$310', 'Throughput':'$76k/mo', 'Status':'mule suspect' } },
+    { id:'card1', type:'card', name:'Card •552', px:560, py:70,  y:null, feat:{ 'Limit':'$5,000', 'Issuer':'Visa' } },
+    { id:'card2', type:'card', name:'Card •118', px:560, py:440, y:null, feat:{ 'Limit':'$12,000', 'Issuer':'Mastercard' } },
+    { id:'addr1', type:'addr', name:'412 Birch Ct', px:740, py:160, y:null, feat:{ 'Region':'Newark, NJ', 'Risk zone':'elevated' } },
+    { id:'addr2', type:'addr', name:'88 Lake Ave', px:740, py:340, y:null, feat:{ 'Region':'Austin, TX', 'Risk zone':'normal' } },
+    { id:'dev1', type:'dev', name:'Device #A19', px:740, py:260, y:null, feat:{ 'IP country':'RO (proxied)', 'HW hash':'a91f…c02' } }
+  ];
+  var MAIN_EDGES = [
+    { source:'cust1', target:'acc1', rel:'own' },
+    { source:'cust2', target:'acc2', rel:'own' },
+    { source:'cust3', target:'acc3', rel:'own' },
+    { source:'cust4', target:'acc4', rel:'own' },
+    { source:'cust1', target:'card1', rel:'own' },
+    { source:'cust3', target:'card2', rel:'own' },
+    { source:'cust2', target:'addr1', rel:'own' },
+    { source:'cust4', target:'addr1', rel:'own' },
+    { source:'cust2', target:'dev1', rel:'own' },
+    { source:'cust4', target:'dev1', rel:'own' },
+    { source:'cust3', target:'addr2', rel:'own' },
+    { source:'acc2', target:'acc5', rel:'tx', amount:'$4,200', ts:'03:14 UTC' },
+    { source:'acc4', target:'acc5', rel:'tx', amount:'$3,850', ts:'03:19 UTC' },
+    { source:'acc1', target:'acc3', rel:'tx', amount:'$120', ts:'14:02 UTC' }
+  ];
+
+  /* ---------- Slide 2 wiring ---------- */
+  var s2Selected = null;
+  function s2Render(){
+    renderGraph('s2svg', MAIN_NODES, MAIN_EDGES, { selectedId:s2Selected, layer:'all', interactive:true, edgeHover:false, onSelect:function(n){ s2Selected = n.id; s2Render(); s2ShowInspector(n); } });
+  }
+  function s2ShowInspector(n){
+    var panel = document.getElementById('s2panel');
+    var yBadge = n.y === 1 ? '<span class="badge pink">y = 1 · Fraudulent</span>' : (n.y === 0 ? '<span class="badge blue">y = 0 · Legitimate</span>' : '<span class="badge gray">Auxiliary — no target label</span>');
+    var rows = Object.keys(n.feat).map(function(k){ return '<div class="frow"><span class="k">'+k+'</span><span class="val">'+n.feat[k]+'</span></div>'; }).join('');
+    panel.innerHTML =
+      '<div class="insp-head"><h4>'+n.name+'</h4>'+yBadge+'</div>' +
+      '<div class="badge gray" style="align-self:flex-start;">'+TYPE_CFG[n.type].label+'</div>' +
+      '<div class="insp-feat">'+rows+'</div>';
+  }
+  renderTypeLegend('s2legend');
+  s2Render();
+  document.getElementById('s2Hint').textContent = 'try Marcus T. or Device #A19';
+
+  /* ---------- Slide 3 wiring ---------- */
+  var s3Layer = 'all';
+  function s3Render(){
+    renderGraph('s3svg', MAIN_NODES, MAIN_EDGES, { selectedId:null, layer:s3Layer, interactive:false, edgeHover:true });
+  }
+  renderTypeLegend('s3legend');
+  s3Render();
+  Array.prototype.slice.call(document.querySelectorAll('#s3seg button')).forEach(function(b){
+    b.addEventListener('click', function(){
+      Array.prototype.slice.call(document.querySelectorAll('#s3seg button')).forEach(function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      s3Layer = b.getAttribute('data-layer');
+      s3Render();
+    });
+  });
+
+  /* ============================= SLIDE : PRECOMPUTED STRUCTURAL FEATURES ============================= */
+  (function(){
+    var PR = { cust1:0.07, cust2:0.13, cust3:0.06, cust4:0.13, acc1:0.06, acc2:0.10, acc3:0.05, acc4:0.10, acc5:0.19, card1:0.03, card2:0.03, addr1:0.15, addr2:0.04, dev1:0.14 };
+    var PR_SCALE = {}; Object.keys(PR).forEach(function(id){ PR_SCALE[id] = 0.7 + PR[id]*2.2; });
+    var PR_BADGE = {}; Object.keys(PR).forEach(function(id){ PR_BADGE[id] = 'PR ' + PR[id].toFixed(2); });
+    var COMPONENTS = [
+      { ids:['cust2','cust4','acc2','acc4','acc5','addr1','dev1'], label:'Component A · 7 nodes (fraud ring)', color:'var(--pink-1)' },
+      { ids:['cust1','acc1','card1'], label:'Component B · 3 nodes', color:'var(--green-1)' },
+      { ids:['cust3','acc3','card2','addr2'], label:'Component C · 4 nodes', color:'var(--amber-1)' }
+    ];
+    var RING_COLORS = {};
+    COMPONENTS.forEach(function(c){ c.ids.forEach(function(id){ RING_COLORS[id] = c.color; }); });
+
+    var s4Mode = 'labels';
+    function s4Render(){
+      renderGraph('s4svg', MAIN_NODES, MAIN_EDGES, {
+        selectedId:null, layer:'all', interactive:false, edgeHover:false,
+        sizeScale: s4Mode==='pagerank' ? PR_SCALE : null,
+        badge: s4Mode==='pagerank' ? PR_BADGE : null,
+        ringColors: s4Mode==='components' ? RING_COLORS : null
+      });
+      var legend = document.getElementById('s4legend'); legend.innerHTML='';
+      if (s4Mode==='pagerank'){
+        var d = document.createElement('div'); d.className='li';
+        d.textContent = 'Larger shape = higher PageRank centrality (mule account acc5 and the shared address/device dominate).';
+        legend.appendChild(d);
+      } else if (s4Mode==='components'){
+        COMPONENTS.forEach(function(c){
+          var el = document.createElement('div'); el.className='li';
+          el.innerHTML = '<span class="dot" style="border-color:'+c.color+'; background:#fff;"></span>'+c.label;
+          legend.appendChild(el);
+        });
+      } else {
+        renderTypeLegend('s4legend');
+      }
+    }
+    s4Render();
+    Array.prototype.slice.call(document.querySelectorAll('#s4seg button')).forEach(function(b){
+      b.addEventListener('click', function(){
+        Array.prototype.slice.call(document.querySelectorAll('#s4seg button')).forEach(function(x){ x.classList.remove('active'); });
+        b.classList.add('active');
+        s4Mode = b.getAttribute('data-mode');
+        document.getElementById('s4Hint').textContent = s4Mode==='labels' ? 'toggle below' : (s4Mode==='pagerank' ? 'size ∝ centrality' : 'ring color = component');
+        s4Render();
+      });
+    });
+  })();
+
+  /* ============================= SLIDE 4 : MESSAGE PASSING SIMULATOR ============================= */
+  (function(){
+    var mp = { stage:0, K:0, playing:false, gen:0, embed:[0.42,0.61,0.30,0.55,0.47,0.36] };
+    var STAGE_NAMES = ['idle','generate messages','aggregate','update'];
+    var target = { px:320, py:170 };
+    var neigh = ringLayout(320,170,128,5).map(function(p,i){ return { px:p.px, py:p.py, fraud: i===1, name:'u'+(i+1) }; });
+
+    var svg = document.getElementById('mpsvg');
+    var pulseEls = [];
+    function build(){
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      var edgeLayer = se('g',{});
+      neigh.forEach(function(n){ edgeLayer.appendChild(se('line',{x1:n.px,y1:n.py,x2:target.px,y2:target.py,stroke:'var(--line-strong)','stroke-width':1.6})); });
+      svg.appendChild(edgeLayer);
+
+      var nodeLayer = se('g',{});
+      neigh.forEach(function(n){
+        var g = se('g',{ id:'mp-n-'+n.name });
+        var c = se('circle',{ cx:n.px, cy:n.py, r:16, fill: n.fraud?'var(--pink-wash)':'var(--blue-wash)', stroke: n.fraud?'var(--pink-1)':'var(--blue-1)', 'stroke-width':2 });
+        g.appendChild(c);
+        var t = se('text',{ x:n.px, y:n.py+29, 'text-anchor':'middle', 'font-family':'var(--font-mono)', 'font-size':10, fill:'var(--ink-soft)' });
+        t.textContent = n.name; g.appendChild(t);
+        nodeLayer.appendChild(g);
+      });
+      var tg = se('g',{ id:'mp-target' });
+      var tc = se('circle',{ cx:target.px, cy:target.py, r:22, fill:'var(--blue-wash)', stroke:'var(--blue-1)', 'stroke-width':2.6 });
+      tg.appendChild(tc);
+      var tt = se('text',{ x:target.px, y:target.py+38, 'text-anchor':'middle', 'font-family':'var(--font-mono)', 'font-size':11, 'font-weight':700, fill:'var(--ink)' });
+      tt.textContent = 'target v'; tg.appendChild(tt);
+      nodeLayer.appendChild(tg);
+      svg.appendChild(nodeLayer);
+
+      var pulseLayer = se('g',{});
+      pulseEls = neigh.map(function(n){
+        var p = se('circle',{ cx:n.px, cy:n.py, r:5.5, fill:'var(--pink-2)', opacity:0 });
+        pulseLayer.appendChild(p);
+        return p;
+      });
+      svg.appendChild(pulseLayer);
+    }
+
+    function embedBars(){
+      var svgE = document.getElementById('mpEmbed');
+      while (svgE.firstChild) svgE.removeChild(svgE.firstChild);
+      var w = 34, gap = 8;
+      mp.embed.forEach(function(v,i){
+        var h = Math.max(3, v*50);
+        var x = 6 + i*(w+gap);
+        svgE.appendChild(se('rect',{ x:x, y:56-h, width:w, height:h, rx:3, fill: i%2? 'var(--blue-2)':'var(--pink-2)', opacity:.85 }));
+      });
+    }
+
+    function setLabels(){
+      document.getElementById('mpStageLabel').textContent = 'Stage: ' + STAGE_NAMES[mp.stage];
+      document.getElementById('mpLayerLabel').textContent = 'K = ' + mp.K;
+    }
+
+    function log(msg){ document.getElementById('mpLog').innerHTML = msg; }
+
+    function tween(duration, onFrame, onDone, myGen){
+      var start = null;
+      function frame(ts){
+        if (myGen !== mp.gen) return;
+        if (start===null) start = ts;
+        var t = Math.min(1, (ts-start)/duration);
+        onFrame(t);
+        if (t < 1) requestAnimationFrame(frame);
+        else if (onDone) onDone();
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function doStage(stage, myGen){
+      if (myGen !== mp.gen) return;
+      mp.stage = stage; setLabels();
+      if (stage === 1){
+        log('Each neighbor <b>generates a message</b> from its current embedding h<sub>u</sub><sup>(l)</sup>.');
+        pulseEls.forEach(function(p,i){ p.setAttribute('opacity',1); p.setAttribute('cx',neigh[i].px); p.setAttribute('cy',neigh[i].py); p.setAttribute('r',5.5); });
+      } else if (stage === 2){
+        log('Messages <b>aggregate</b> along each edge into the target node.');
+        tween(650, function(t){
+          pulseEls.forEach(function(p,i){
+            p.setAttribute('cx', neigh[i].px + (target.px-neigh[i].px)*t);
+            p.setAttribute('cy', neigh[i].py + (target.py-neigh[i].py)*t);
+          });
+        }, function(){ if (myGen===mp.gen) advanceAuto(3, myGen); }, myGen);
+        return;
+      } else if (stage === 3){
+        log('Target node <b>updates</b> its embedding h<sub>v</sub><sup>(l+1)</sup> from the aggregated message.');
+        pulseEls.forEach(function(p){ p.setAttribute('opacity',0); });
+        var tEl = document.getElementById('mp-target');
+        tEl.classList.remove('pulse-anim'); void tEl.offsetWidth; tEl.classList.add('pulse-anim');
+        mp.embed = mp.embed.map(function(v){ var nv=v+(Math.random()-0.5)*0.5; return Math.max(0.06,Math.min(0.95,nv)); });
+        embedBars();
+        mp.K = Math.min(3, mp.K+1);
+        setLabels();
+      } else {
+        log('Press <b>Play</b> to watch one message-passing layer, or <b>Step</b> to advance stage-by-stage.');
+        pulseEls.forEach(function(p){ p.setAttribute('opacity',0); });
+      }
+      if (mp.playing) scheduleNext(myGen);
+    }
+
+    function advanceAuto(stage, myGen){ doStage(stage, myGen); }
+
+    function scheduleNext(myGen){
+      setTimeout(function(){
+        if (myGen !== mp.gen || !mp.playing) return;
+        var next = (mp.stage+1) % 4;
+        if (next === 0) next = 1;
+        doStage(next, myGen);
+      }, 900);
+    }
+
+    function stepOnce(){
+      if (mp.stage === 2) return; // aggregate animation in flight; let it finish
+      mp.playing = false;
+      document.getElementById('mpPlay').textContent = '▶ Play';
+      var next = (mp.stage+1) % 4 || 1;
+      doStage(next, mp.gen);
+    }
+
+    document.getElementById('mpPlay').addEventListener('click', function(){
+      if (mp.stage === 2) return; // aggregate animation in flight; ignore until it settles
+      mp.playing = !mp.playing;
+      this.textContent = mp.playing ? '⏸ Pause' : '▶ Play';
+      if (mp.playing){
+        var myGen = mp.gen;
+        var next = mp.stage === 0 ? 1 : ((mp.stage+1) % 4 || 1);
+        doStage(next, myGen);
+      }
+    });
+    document.getElementById('mpStep').addEventListener('click', stepOnce);
+    document.getElementById('mpReset').addEventListener('click', function(){
+      mp.gen++; mp.playing = false; mp.stage = 0; mp.K = 0;
+      mp.embed = [0.42,0.61,0.30,0.55,0.47,0.36];
+      document.getElementById('mpPlay').textContent = '▶ Play';
+      setLabels(); embedBars();
+      pulseEls.forEach(function(p){ p.setAttribute('opacity',0); });
+      log('Press <b>Play</b> to watch one message-passing layer, or <b>Step</b> to advance stage-by-stage.');
+    });
+
+    build(); embedBars(); setLabels();
+  })();
+
+  /* ============================= SLIDE 5 : TRANSDUCTIVE VS INDUCTIVE ============================= */
+  (function(){
+    function makeMini(){
+      return {
+        nodes: [
+          { id:'A', type:'acc', name:'Acct A', px:160, py:130, y:0, feat:{} },
+          { id:'B', type:'cust', name:'Cust B', px:60, py:60, y:0, feat:{} },
+          { id:'C', type:'cust', name:'Cust C', px:60, py:200, y:1, feat:{} },
+          { id:'D', type:'dev', name:'Device D', px:250, py:200, y:null, feat:{} }
+        ],
+        edges: [
+          { source:'B', target:'A', rel:'own' },
+          { source:'C', target:'A', rel:'own' },
+          { source:'D', target:'A', rel:'own' }
+        ]
+      };
+    }
+    var trans = makeMini();
+    var ind = makeMini();
+    var gen = 0;
+    var injected = false;
+
+    function draw(){
+      renderGraph('tiTransSvg', trans.nodes, trans.edges, { selectedId:null, layer:'all', interactive:false, edgeHover:false });
+      renderGraph('tiIndSvg', ind.nodes, ind.edges, { selectedId:null, layer:'all', interactive:false, edgeHover:false });
+    }
+    draw();
+
+    document.getElementById('tiInject').addEventListener('click', function(){
+      if (injected) return;
+      injected = true;
+      this.disabled = true;
+      var myGen = ++gen;
+
+      var nTrans = { id:'new', type:'acc', name:'New Acct', px:250, py:60, y:null, pending:true, pop:true };
+      var nInd = { id:'new', type:'acc', name:'New Acct', px:250, py:60, y:null, pending:true, pop:true };
+      trans.nodes.push(nTrans);
+      ind.nodes.push(nInd);
+      ind.edges.push({ source:'B', target:'new', rel:'own' });
+      draw();
+
+      document.getElementById('tiTransBadge').textContent = 'unseen node';
+      document.getElementById('tiTransBadge').className = 'badge gray';
+      document.getElementById('tiIndBadge').textContent = 'sampling…';
+      document.getElementById('tiIndBadge').className = 'badge gray';
+
+      setTimeout(function(){
+        if (myGen !== gen) return;
+        document.getElementById('tiTransChip').className = 'clamp-chip clamped';
+        document.getElementById('tiTransChip').textContent = '✗ requires full retrain — no embedding available for New Acct';
+        document.getElementById('tiTransBadge').textContent = 'blocked';
+        document.getElementById('tiTransBadge').className = 'badge pink';
+
+        nInd.pending = false; nInd.pop = false; nInd.glow = 'blue';
+        draw();
+        document.getElementById('tiIndChip').className = 'clamp-chip flow';
+        document.getElementById('tiIndChip').textContent = '✓ scored in 38ms — embedding computed from 1-hop sample';
+        document.getElementById('tiIndBadge').textContent = 'scored';
+        document.getElementById('tiIndBadge').className = 'badge green';
+      }, 900);
+    });
+
+    document.getElementById('tiReset').addEventListener('click', function(){
+      gen++; injected = false;
+      trans = makeMini(); ind = makeMini();
+      draw();
+      document.getElementById('tiInject').disabled = false;
+      ['tiTransChip','tiIndChip'].forEach(function(id){
+        var el = document.getElementById(id);
+        el.className = 'clamp-chip flow'; el.textContent = 'awaiting new node…';
+      });
+      ['tiTransBadge','tiIndBadge'].forEach(function(id){
+        var el = document.getElementById(id);
+        el.className = 'badge gray'; el.textContent = 'idle';
+      });
+    });
+
+    document.getElementById('codeSage').innerHTML = hi(
+'def graphsage_forward(v, K, W):\n'+
+'    h = {u: x[u] for u in sample_khop(v, K)}\n'+
+'    for k in range(K):\n'+
+'        for u in nodes_at_hop(h, k):\n'+
+'            neighbors = sample(adjacency[u], S[k])\n'+
+'            h_N = AGGREGATE([h[n] for n in neighbors])\n'+
+'            h[u] = relu(W[k] @ concat(h[u], h_N))\n'+
+'    return normalize(h[v])  # inductive: works for any new v'
+    );
+  })();
+
+  /* ============================= SLIDE 6 : TEMPORAL SPLITTING ============================= */
+  (function(){
+    var rnd = mulberry32(7);
+    var EVENTS = [];
+    for (var i=0;i<26;i++){
+      EVENTS.push({ t: Math.round(rnd()*100), setRandom: rnd() < 0.68 ? 'train' : 'test', jitter: (rnd()-0.5)*70 });
+    }
+    var mode = 'temporal';
+    var Tcut = 55;
+    var W = 1000, H = 220, PADX = 40, BASE_Y = 120;
+    function xOf(t){ return PADX + (t/100)*(W-2*PADX); }
+
+    function render(){
+      var svg = document.getElementById('tlsvg');
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      svg.appendChild(se('line', { x1:PADX, y1:BASE_Y, x2:W-PADX, y2:BASE_Y, stroke:'var(--line-strong)', 'stroke-width':1.4 }));
+      svg.appendChild(se('text', { x:PADX, y:BASE_Y+34, 'font-family':'var(--font-mono)', 'font-size':11, fill:'var(--muted)' })).textContent = 't0';
+      svg.appendChild(se('text', { x:W-PADX, y:BASE_Y+34, 'text-anchor':'end', 'font-family':'var(--font-mono)', 'font-size':11, fill:'var(--muted)' })).textContent = 'tmax';
+
+      if (mode === 'temporal'){
+        var cx = xOf(Tcut);
+        var cutLine = se('line', { x1:cx, y1:20, x2:cx, y2:H-30, stroke:'var(--pink-1)', 'stroke-width':2, 'stroke-dasharray':'5 4' });
+        svg.appendChild(cutLine);
+        var cutLbl = se('text', { x:cx, y:16, 'text-anchor':'middle', 'font-family':'var(--font-mono)', 'font-size':10.5, 'font-weight':700, fill:'var(--pink-1)' });
+        cutLbl.textContent = 'T_cut'; svg.appendChild(cutLbl);
+
+        EVENTS.forEach(function(e){
+          var isTrain = e.t <= Tcut;
+          var c = se('circle', { cx:xOf(e.t), cy:BASE_Y + e.jitter*0.5, r:5.5,
+            fill: isTrain ? 'var(--blue-wash)' : '#eef0f2',
+            stroke: isTrain ? 'var(--blue-1)' : '#b7bec8',
+            'stroke-width':1.8, opacity: isTrain ? 1 : .6 });
+          if (!isTrain) c.setAttribute('stroke-dasharray','2 2');
+          svg.appendChild(c);
+        });
+      } else {
+        EVENTS.forEach(function(e){
+          var isTest = e.setRandom === 'test';
+          var c = se('circle', { cx:xOf(e.t), cy:BASE_Y + e.jitter*0.5, r:5.5,
+            fill: isTest ? 'var(--pink-wash)' : 'var(--blue-wash)',
+            stroke: isTest ? 'var(--pink-1)' : 'var(--blue-1)', 'stroke-width':1.8 });
+          svg.appendChild(c);
+        });
+        var trains = EVENTS.filter(function(e){ return e.setRandom==='train'; });
+        var tests = EVENTS.filter(function(e){ return e.setRandom==='test'; });
+        var leaks = 0;
+        for (var i=0;i<tests.length && leaks<3;i++){
+          for (var j=0;j<trains.length && leaks<3;j++){
+            if (tests[i].t > trains[j].t){
+              var x1 = xOf(tests[i].t), y1 = BASE_Y + tests[i].jitter*0.5;
+              var x2 = xOf(trains[j].t), y2 = BASE_Y + trains[j].jitter*0.5;
+              var mx = (x1+x2)/2, my = Math.min(y1,y2) - 55;
+              var p = se('path', { d:'M'+x1+','+y1+' Q'+mx+','+my+' '+x2+','+y2, fill:'none', stroke:'var(--pink-1)', 'stroke-width':1.6, 'stroke-dasharray':'3 3', opacity:.8 });
+              svg.appendChild(p);
+              leaks++;
+            }
+          }
+        }
+      }
+      document.getElementById('tlCallout').style.display = mode==='random' ? 'block' : 'none';
+      document.getElementById('tlSlider').disabled = mode==='random';
+      document.getElementById('tlSlider').style.opacity = mode==='random' ? .4 : 1;
+      document.getElementById('tlReadout').textContent = mode==='temporal' ? ('T_cut = '+Tcut) : 'cutoff not enforced';
+    }
+
+    document.getElementById('tlSlider').addEventListener('input', function(e){
+      Tcut = parseInt(e.target.value,10); render();
+    });
+    Array.prototype.slice.call(document.querySelectorAll('#splitSeg button')).forEach(function(b){
+      b.addEventListener('click', function(){
+        Array.prototype.slice.call(document.querySelectorAll('#splitSeg button')).forEach(function(x){ x.classList.remove('active'); });
+        b.classList.add('active');
+        mode = b.getAttribute('data-mode');
+        render();
+      });
+    });
+    render();
+  })();
+
+  /* ============================= SLIDE 7 : TEMPORAL ENCODING + MEMORY ============================= */
+  (function(){
+    var W = 620, H = 220, PADX = 40, PADY = 30;
+    var CURVES = [
+      { omega:0.16, color:'var(--blue-1)' },
+      { omega:0.34, color:'var(--blue-3)' },
+      { omega:0.62, color:'var(--pink-1)' }
+    ];
+    function xOf(t){ return PADX + (t/100)*(W-2*PADX); }
+    function yOf(v){ return PADY + (1-(v+1)/2)*(H-2*PADY-20); }
+
+    function renderFourier(dt){
+      var svg = document.getElementById('fouriersvg');
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      svg.appendChild(se('line', { x1:PADX, y1:yOf(0), x2:W-PADX, y2:yOf(0), stroke:'var(--line)', 'stroke-width':1 }));
+
+      var vals = CURVES.map(function(c){
+        var d = 'M';
+        for (var t=0; t<=100; t+=2){
+          var v = Math.cos(c.omega*t);
+          d += (t===0?'':'L') + xOf(t) + ',' + yOf(v) + ' ';
+        }
+        svg.appendChild(se('path', { d:d, fill:'none', stroke:c.color, 'stroke-width':2 }));
+        var vv = Math.cos(c.omega*dt);
+        svg.appendChild(se('circle', { cx:xOf(dt), cy:yOf(vv), r:4.5, fill:c.color }));
+        return vv;
+      });
+
+      svg.appendChild(se('line', { x1:xOf(dt), y1:PADY-10, x2:xOf(dt), y2:H-PADY+8, stroke:'var(--muted)', 'stroke-width':1, 'stroke-dasharray':'3 3' }));
+      document.getElementById('fourierVal').textContent = 'Δt = '+dt+'  →  ['+vals.map(function(v){return v.toFixed(2);}).join(', ')+']';
+    }
+
+    var dtSlider = document.getElementById('dtSlider');
+    dtSlider.addEventListener('input', function(){ renderFourier(parseInt(dtSlider.value,10)); });
+    renderFourier(parseInt(dtSlider.value,10));
+
+    /* node memory replay */
+    var mem = { vals:[0.3,0.3,0.3,0.3,0.3,0.3], gen:0 };
+    var EVENTS = [
+      { t:'02:11', d:'small purchase' }, { t:'02:14', d:'balance check' }, { t:'02:19', d:'transfer out $4.2k' },
+      { t:'03:02', d:'login new device' }, { t:'03:05', d:'transfer out $3.8k' }, { t:'03:09', d:'card declined' }
+    ];
+    function renderMem(){
+      var svg = document.getElementById('memsvg');
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      var w=34, gap=8;
+      mem.vals.forEach(function(v,i){
+        var h = Math.max(3, v*50);
+        var x = 6 + i*(w+gap);
+        svg.appendChild(se('rect', { x:x, y:56-h, width:w, height:h, rx:3, fill:'var(--blue-2)', opacity:.85 }));
+      });
+    }
+    renderMem();
+
+    document.getElementById('memPlay').addEventListener('click', function(){
+      var myGen = ++mem.gen;
+      var btn = this; btn.disabled = true;
+      function step(i){
+        if (myGen !== mem.gen) return;
+        if (i >= EVENTS.length){
+          document.getElementById('memLog').innerHTML = '<b>Sequence complete —</b> memory now reflects the full event history.';
+          btn.disabled = false;
+          return;
+        }
+        mem.vals = mem.vals.map(function(v){ return Math.max(0.05, Math.min(0.95, v + (Math.random()-0.5)*0.45)); });
+        renderMem();
+        document.getElementById('memLog').innerHTML = 'event <b>t='+EVENTS[i].t+'</b> ('+EVENTS[i].d+') → memory s<sub>v</sub>(t) updated';
+        setTimeout(function(){ step(i+1); }, 700);
+      }
+      step(0);
+    });
+    document.getElementById('memReset').addEventListener('click', function(){
+      mem.gen++;
+      mem.vals = [0.3,0.3,0.3,0.3,0.3,0.3];
+      renderMem();
+      document.getElementById('memPlay').disabled = false;
+      document.getElementById('memLog').textContent = 'Sequential GRU-style memory updates on each incoming transaction event.';
+    });
+  })();
+
+  /* ============================= SLIDE : TEMPORAL GNN VS INDUCTIVE + EDGE FEATURE ============================= */
+  (function(){
+    var MODES = {
+      tgn: {
+        eq: '<div class="eq">'+
+              '<span class="v">s</span><sub>v</sub><span class="op">(t) = </span><span class="fn">GRU</span><span class="op">(</span>'+
+              '<span class="v">s</span><sub>v</sub><span class="op">(t<sup>−</sup>), msg(t))</span>'+
+            '</div>'+
+            '<p class="eq-caption">Node memory is updated in place whenever a new event touches v; the embedding is read out from this evolving state.</p>',
+        flow: ['Event arrives', 'Memory GRU update s<sub>v</sub>(t)', 'Temporal attention', 'Embedding h<sub>v</sub>'],
+        note: '<b>Stateful —</b> the model literally remembers a dormant account reactivating six months later, because s<sub>v</sub>(t) persisted the whole time.'
+      },
+      edgefeat: {
+        eq: '<div class="eq">'+
+              '<span class="v">h</span><sub>v</sub><span class="op">= </span>'+
+              '<span class="fnop"><span class="fname">AGG</span><span class="fidx">u&isin;N(v)</span></span>'+
+              '<span class="fn">MLP</span><span class="op">([</span><span class="v">h</span><sub>u</sub><span class="op">; </span><span class="v">&Phi;</span><span class="op">(&Delta;t</span><sub>uv</sub><span class="op">)])</span>'+
+            '</div>'+
+            '<p class="eq-caption">No persistent state — &Delta;t is just another number concatenated into the message, so any inductive sampler (GraphSAGE, GAT) works unmodified.</p>',
+        flow: ['Sampled neighbor h<sub>u</sub>', 'concat with &Phi;(&Delta;t)', 'MLP / attention', 'Embedding h<sub>v</sub>'],
+        note: '<b>Stateless —</b> fits the exact same bounded k-hop sampler as the production pipeline; nothing extra to keep warm between requests.'
+      }
+    };
+    function render(mode){
+      document.getElementById('archEqPanel').innerHTML = MODES[mode].eq;
+      document.getElementById('archFlow').innerHTML = MODES[mode].flow.map(function(f,i,arr){
+        return '<span class="badge blue">'+f+'</span>' + (i<arr.length-1 ? '<span style="color:var(--muted);">→</span>' : '');
+      }).join('');
+      document.getElementById('archNote').innerHTML = MODES[mode].note;
+    }
+    render('tgn');
+    Array.prototype.slice.call(document.querySelectorAll('#archSeg button')).forEach(function(b){
+      b.addEventListener('click', function(){
+        Array.prototype.slice.call(document.querySelectorAll('#archSeg button')).forEach(function(x){ x.classList.remove('active'); });
+        b.classList.add('active');
+        render(b.getAttribute('data-mode'));
+      });
+    });
+  })();
+
+  /* ============================= SLIDE 8 : BCE VS nnPU LOSS ============================= */
+  (function(){
+    var rnd = mulberry32(19);
+    var W=560, H=300, PADX=50, PADY=30;
+    var POINTS = [];
+    for (var i=0;i<8;i++){ POINTS.push({ x:0.55+rnd()*0.4, y:0.4+rnd()*0.5, set:'P' }); }
+    for (var j=0;j<42;j++){
+      var hidden = j < 9;
+      var x = hidden ? (0.4+rnd()*0.4) : rnd()*0.75;
+      POINTS.push({ x:x, y:rnd()*0.9+0.05, set:'U', hiddenPositive:hidden });
+    }
+    function xOf(v){ return PADX + v*(W-2*PADX); }
+    function yOf(v){ return H-PADY - v*(H-2*PADY); }
+
+    var mode = 'bce';
+
+    function renderScatter(){
+      var svg = document.getElementById('pusvg');
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      svg.appendChild(se('line', { x1:PADX, y1:H-PADY, x2:W-PADX, y2:H-PADY, stroke:'var(--line-strong)', 'stroke-width':1.3 }));
+      svg.appendChild(se('line', { x1:PADX, y1:PADY, x2:PADX, y2:H-PADY, stroke:'var(--line-strong)', 'stroke-width':1.3 }));
+      var xl = se('text', { x:W-PADX, y:H-PADY+22, 'text-anchor':'end', 'font-family':'var(--font-mono)', 'font-size':10.5, fill:'var(--muted)' });
+      xl.textContent = 'transaction velocity (z-score) →'; svg.appendChild(xl);
+      var yl = se('text', { x:PADX-34, y:PADY, 'font-family':'var(--font-mono)', 'font-size':10.5, fill:'var(--muted)' });
+      yl.textContent = '↑ network suspicion'; svg.appendChild(yl);
+
+      POINTS.forEach(function(p){
+        var reveal = mode==='nnpu' && p.hiddenPositive;
+        var c = se('circle', { cx:xOf(p.x), cy:yOf(p.y), r: p.set==='P' ? 6 : 5,
+          fill: p.set==='P' ? 'var(--pink-wash)' : 'var(--blue-wash)',
+          stroke: p.set==='P' ? 'var(--pink-1)' : (reveal ? 'var(--pink-1)' : 'var(--line-strong)'),
+          'stroke-width': reveal ? 2.4 : 1.5 });
+        if (reveal) c.setAttribute('stroke-dasharray','2 2');
+        svg.appendChild(c);
+      });
+    }
+
+    function renderLegend(){
+      var el = document.getElementById('pulegend'); el.innerHTML='';
+      var items = [
+        { c:'var(--pink-1)', f:'var(--pink-wash)', dash:false, label:'Positive (labeled fraud)' },
+        { c:'var(--line-strong)', f:'var(--blue-wash)', dash:false, label:'Unlabeled' },
+        { c:'var(--pink-1)', f:'var(--blue-wash)', dash:true, label:'Hidden fraud (revealed under nnPU)' }
+      ];
+      items.forEach(function(it){
+        var d = document.createElement('div'); d.className='li';
+        d.innerHTML = '<span class="dot" style="border-color:'+it.c+'; background:'+it.f+'; '+(it.dash?'border-style:dashed;':'')+'"></span>'+it.label;
+        el.appendChild(d);
+      });
+    }
+    renderLegend();
+    renderScatter();
+
+    var R_P_PLUS=0.22, R_P_MINUS=0.4, R_U_MINUS=0.16;
+    function updateNnpu(){
+      var pi = parseInt(document.getElementById('piSlider').value,10)/100;
+      document.getElementById('piVal').textContent = pi.toFixed(2);
+      var val = R_U_MINUS - pi*R_P_MINUS;
+      var maxAbs = 0.16;
+      var pct = Math.max(-1, Math.min(1, val/maxAbs)) * 50;
+      var bar = document.getElementById('nnpuBar');
+      if (pct >= 0){ bar.style.left='50%'; bar.style.width=pct+'%'; bar.style.background='var(--blue-2)'; }
+      else { bar.style.left=(50+pct)+'%'; bar.style.width=(-pct)+'%'; bar.style.background='var(--pink-1)'; }
+      var chip = document.getElementById('nnpuChip');
+      if (val < 0){
+        chip.className = 'clamp-chip clamped';
+        chip.textContent = 'clamped to 0 — nnPU blocks the negative gradient corruption';
+      } else {
+        chip.className = 'clamp-chip flow';
+        chip.textContent = 'flowing — negative risk stays positive, gradients unclamped';
+      }
+    }
+    document.getElementById('piSlider').addEventListener('input', updateNnpu);
+    updateNnpu();
+
+    Array.prototype.slice.call(document.querySelectorAll('#lossSeg button')).forEach(function(b){
+      b.addEventListener('click', function(){
+        Array.prototype.slice.call(document.querySelectorAll('#lossSeg button')).forEach(function(x){ x.classList.remove('active'); });
+        b.classList.add('active');
+        mode = b.getAttribute('data-mode');
+        document.getElementById('bcePanel').style.display = mode==='bce' ? 'block' : 'none';
+        document.getElementById('nnpuPanel').style.display = mode==='nnpu' ? 'block' : 'none';
+        document.getElementById('puHint').textContent = mode==='nnpu' ? 'hidden fraud ring revealed' : 'toggle loss →';
+        renderScatter();
+      });
+    });
+
+    document.getElementById('codeNnpu').innerHTML = hi(
+'def nnpu_loss(pi, R_p_plus, R_p_minus, R_u_minus):\n'+
+'    positive_risk = pi * R_p_plus\n'+
+'    negative_risk = R_u_minus - pi * R_p_minus\n'+
+'    if negative_risk < 0:\n'+
+'        return positive_risk  # clamp: gradient-ascent the negative term\n'+
+'    return positive_risk + negative_risk'
+    );
+  })();
+
+  /* ============================= SLIDE 9 : PRODUCTION PIPELINE (REAL-TIME VS BATCH) ============================= */
+  (function(){
+    var MODE_CFG = {
+      realtime: {
+        unit:'ms', sla:50, slaWindow:'50ms SLA', playLabel:'▶ Run Transaction',
+        latLabel:'Elapsed latency', coldLabel:'Simulate cold feature-store cache (+15ms)', coldIdx:2, coldExtra:15,
+        idleMsg:'awaiting transaction…',
+        pass:function(t){ return '✓ '+t+'ms — under the 50ms SLA'; },
+        fail:function(t){ return '✗ '+t+'ms — exceeds the 50ms SLA, investigate cache warmup'; },
+        stages:[
+          { name:'Transaction Trigger', desc:'Payment gateway emits event', val:4 },
+          { name:'Kafka Event Bus', desc:'Streams to feature store', val:9 },
+          { name:'Feature Store / Graph DB', desc:'Memgraph / Neptune lookup', val:8 },
+          { name:'k-Hop Sampler', desc:'Bounded neighborhood extraction', val:11 },
+          { name:'GNN Service (ONNX/TensorRT)', desc:'Inductive forward pass', val:9 },
+          { name:'Decision Engine', desc:'Approve / hold / decline', val:3 }
+        ]
+      },
+      batch: {
+        unit:'min', sla:240, slaWindow:'240min nightly window', playLabel:'▶ Run Nightly Batch',
+        latLabel:'Job duration', coldLabel:'Simulate cluster contention (+80min)', coldIdx:2, coldExtra:80,
+        idleMsg:'awaiting nightly trigger…',
+        pass:function(t){ return '✓ '+t+'min — finishes inside the 240min nightly window (≈14.2M nodes scored)'; },
+        fail:function(t){ return '✗ '+t+'min — blows the nightly window, the AML case queue falls behind'; },
+        stages:[
+          { name:'Scheduled Trigger', desc:'Nightly Airflow DAG kicks off', val:2 },
+          { name:'Full Graph Snapshot', desc:'Warehouse export of the full ledger', val:22 },
+          { name:'Distributed k-Hop Sampling', desc:'Spark / GraphFrames over the cluster', val:41 },
+          { name:'Batch GNN Scoring', desc:'Multi-GPU vectorized forward pass', val:35 },
+          { name:'Write to Case Queue', desc:'Scores land in the AML review queue', val:9 }
+        ]
+      }
+    };
+    var mode = 'realtime';
+    var coldCache = false;
+    var gen = 0;
+
+    function buildPipeline(){
+      var wrap = document.getElementById('pipeline');
+      wrap.innerHTML = '';
+      var stages = MODE_CFG[mode].stages;
+      stages.forEach(function(s, i){
+        var el = document.createElement('div');
+        el.className = 'pipe-stage'; el.id = 'pipe-'+i;
+        el.innerHTML = '<div class="pname">'+s.name+'</div><div class="pdesc">'+s.desc+'</div><div class="pms" id="pipe-ms-'+i+'"></div>';
+        wrap.appendChild(el);
+        if (i < stages.length-1){
+          var arrow = document.createElement('div'); arrow.className='pipe-arrow';
+          arrow.innerHTML = '<svg viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8h18M14 2l6 6-6 6"/></svg>';
+          wrap.appendChild(arrow);
+        }
+      });
+    }
+
+    function reset(){
+      gen++;
+      var cfg = MODE_CFG[mode];
+      cfg.stages.forEach(function(s,i){
+        document.getElementById('pipe-'+i).classList.remove('lit');
+        document.getElementById('pipe-ms-'+i).textContent = '';
+      });
+      document.getElementById('latVal').textContent = '0 '+cfg.unit;
+      var chip = document.getElementById('slaChip');
+      chip.className = 'clamp-chip flow'; chip.textContent = cfg.idleMsg;
+      document.getElementById('pipePlay').disabled = false;
+      document.getElementById('pipePlay').textContent = cfg.playLabel;
+      document.getElementById('latLabel').textContent = cfg.latLabel;
+      document.getElementById('coldLabel').textContent = cfg.coldLabel;
+    }
+
+    function applyMode(newMode){
+      mode = newMode;
+      gen++; // invalidate any in-flight run from the previous mode
+      buildPipeline();
+      reset();
+    }
+
+    document.getElementById('pipePlay').addEventListener('click', function(){
+      reset();
+      var cfg = MODE_CFG[mode];
+      var myGen = gen;
+      var btn = this; btn.disabled = true;
+      var total = 0;
+      function runStage(i){
+        if (myGen !== gen) return;
+        if (i >= cfg.stages.length){
+          var chip = document.getElementById('slaChip');
+          if (total <= cfg.sla){ chip.className='clamp-chip good'; chip.textContent = cfg.pass(total); }
+          else { chip.className='clamp-chip clamped'; chip.textContent = cfg.fail(total); }
+          btn.disabled = false;
+          return;
+        }
+        document.getElementById('pipe-'+i).classList.add('lit');
+        var v = cfg.stages[i].val + (coldCache && i===cfg.coldIdx ? cfg.coldExtra : 0);
+        total += v;
+        document.getElementById('pipe-ms-'+i).textContent = '+'+v+cfg.unit;
+        document.getElementById('latVal').textContent = total+' '+cfg.unit;
+        setTimeout(function(){ runStage(i+1); }, 420);
+      }
+      runStage(0);
+    });
+    document.getElementById('pipeReset').addEventListener('click', reset);
+
+    var coldSwitch = document.getElementById('coldSwitch');
+    function toggleCold(){
+      coldCache = !coldCache;
+      coldSwitch.classList.toggle('on', coldCache);
+      coldSwitch.setAttribute('aria-checked', String(coldCache));
+    }
+    coldSwitch.addEventListener('click', toggleCold);
+    coldSwitch.addEventListener('keydown', function(e){
+      if (e.key===' ' || e.key==='Enter'){ e.preventDefault(); e.stopPropagation(); toggleCold(); }
+    });
+
+    Array.prototype.slice.call(document.querySelectorAll('#infModeSeg button')).forEach(function(b){
+      b.addEventListener('click', function(){
+        Array.prototype.slice.call(document.querySelectorAll('#infModeSeg button')).forEach(function(x){ x.classList.remove('active'); });
+        b.classList.add('active');
+        applyMode(b.getAttribute('data-mode'));
+      });
+    });
+
+    buildPipeline();
+    reset();
+  })();
+
+  /* ============================= SLIDE 10 : ON-THE-FLY SUBGRAPH SAMPLING ============================= */
+  (function(){
+    var target = { id:'t0', type:'acc', name:'Acct #8823', px:300, py:215, y:null };
+    var hop1Types = ['cust','cust','card','dev','cust','addr','cust','card'];
+    var hop1Pos = ringLayout(300,215,120,8);
+    var hop1 = hop1Pos.map(function(p,i){
+      return { id:'h1-'+i, type:hop1Types[i], name:'N'+(i+1), px:p.px, py:p.py, y: i===1?1:0, sampled: i<6 };
+    });
+    var hop2Pos = ringLayout(300,215,195,5,-Math.PI/2+0.3);
+    var hop2 = hop2Pos.map(function(p,i){
+      return { id:'h2-'+i, type: i%2===0?'addr':'dev', name:'M'+(i+1), px:p.px, py:p.py, y:null, sampled: i<3 };
+    });
+    var nodes = [target].concat(hop1, hop2);
+    var edges = hop1.map(function(n){ return { source:target.id, target:n.id, rel:'own' }; });
+    hop2.forEach(function(n, i){ edges.push({ source: hop1[i % 6].id, target:n.id, rel: i%2===0?'own':'tx', amount:'$1,900', ts:'—' }); });
+
+    function draw(){
+      renderGraph('s10svg', nodes, edges, { selectedId:null, layer:'all', interactive:false, edgeHover:false, targetId:target.id });
+    }
+    draw();
+
+    var gen = 0;
+    document.getElementById('s10Play').addEventListener('click', function(){
+      var myGen = ++gen;
+      var btn = this; btn.disabled = true;
+      var sampledNodes = nodes.filter(function(n){ return n.sampled !== false; });
+      sampledNodes.forEach(function(n){ n.glow = n.id===target.id ? null : 'blue'; });
+      draw();
+      document.getElementById('s10Log').innerHTML = 'Sampling S<sub>1</sub>=6, S<sub>2</sub>=3 neighbors → running inductive forward pass on the bounded subgraph…';
+      setTimeout(function(){
+        if (myGen !== gen) return;
+        sampledNodes.forEach(function(n){ n.glow = null; });
+        target.glow = 'pink'; target.y = 1;
+        draw();
+        var score = 0.87;
+        document.getElementById('s10ScoreVal').textContent = score.toFixed(2);
+        document.getElementById('s10Meter').style.width = (score*100)+'%';
+        document.getElementById('s10Log').innerHTML = '<b>P(Fraud) = 0.87</b> — scored from a bounded k-hop subgraph, zero global graph load.';
+        btn.disabled = false;
+      }, 1100);
+    });
+    document.getElementById('s10Reset').addEventListener('click', function(){
+      gen++;
+      nodes.forEach(function(n){ n.glow = null; });
+      target.y = null;
+      draw();
+      document.getElementById('s10ScoreVal').textContent = '—';
+      document.getElementById('s10Meter').style.width = '0%';
+      document.getElementById('s10Log').textContent = 'No global graph load — bounded memory, bounded latency.';
+      document.getElementById('s10Play').disabled = false;
+    });
+  })();
+
+})();
+</script>
+</body>
+</html>
