@@ -1,0 +1,1485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Non-negative PU Loss for Graph Neural Networks</title>
+<style>
+  /* ============================= TOKENS ============================= */
+  :root{
+    --bg:#f5f5f5;
+    --surface:#ffffff;
+    --surface-2:#fbfbfa;
+    --ink:#151d27;
+    --ink-soft:#48525f;
+    --muted:#818b98;
+    --line:rgba(9,78,134,0.14);
+    --line-strong:rgba(9,78,134,0.28);
+
+    --blue-1:#094e86;
+    --blue-2:#1f5e91;
+    --blue-3:#3d81b8;
+    --pink-1:#ff5d8f;
+    --pink-2:#ff87ab;
+    --pink-3:#ffa6c1;
+
+    --blue-wash:rgba(9,78,134,0.07);
+    --pink-wash:rgba(255,93,143,0.08);
+    --neutral-dot:#8a94a3;
+
+    --code-bg:#0d1b2a;
+    --code-ink:#dce6f0;
+    --code-muted:#5c7996;
+
+    --font-display:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,'Times New Roman',serif;
+    --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:'SF Mono',SFMono-Regular,'Cascadia Code','Roboto Mono',Consolas,'Liberation Mono',monospace;
+
+    --shadow-card:0 1px 2px rgba(9,30,50,0.04), 0 8px 24px -12px rgba(9,30,50,0.18);
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+  ::selection{ background:var(--pink-2); color:#fff; }
+
+  h1,h2,h3{ margin:0; font-family:var(--font-display); font-weight:600; text-wrap:balance; }
+  p{ margin:0; }
+  button{ font-family:inherit; }
+
+  /* ============================= GRADIENT TEXT ============================= */
+  .grad-blue{
+    background:linear-gradient(100deg,var(--blue-1),var(--blue-2) 55%,var(--blue-3));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .grad-pink{
+    background:linear-gradient(100deg,var(--pink-1),var(--pink-2) 55%,var(--pink-3));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    font-style:italic;
+  }
+
+  /* ============================= BACKDROP TEXTURE ============================= */
+  .backdrop{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(9,78,134,0.10) 1px, transparent 0);
+    background-size:34px 34px;
+    -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 40%, black 15%, transparent 75%);
+    mask-image:radial-gradient(ellipse 80% 60% at 50% 40%, black 15%, transparent 75%);
+  }
+
+  /* ============================= DECK / SLIDES ============================= */
+  .deck{ position:relative; width:100vw; height:100vh; z-index:1; }
+
+  .slide{
+    position:absolute; inset:0;
+    display:flex; justify-content:center;
+    padding: clamp(20px,4.4vw,64px) clamp(20px,7vw,120px) clamp(78px,9vh,110px);
+    opacity:0; pointer-events:none;
+    transform:translateX(28px);
+    transition:opacity .45s ease, transform .45s ease;
+    overflow-y:auto;
+  }
+  .slide.active{ opacity:1; pointer-events:auto; transform:translateX(0); }
+  .slide.leaving-back{ transform:translateX(-28px); }
+
+  .slide-inner{ width:100%; max-width:1180px; margin:auto; }
+
+  .eyebrow{
+    font-family:var(--font-mono); font-size:.72rem; letter-spacing:.16em; font-weight:600;
+    color:var(--blue-2); text-transform:uppercase; margin-bottom:14px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{
+    content:''; width:22px; height:1.5px; background:linear-gradient(90deg,var(--pink-1),var(--blue-2));
+    display:inline-block;
+  }
+
+  .slide h1.title-grad{ font-size:clamp(2rem,4.2vw,3.4rem); line-height:1.08; letter-spacing:-.01em; }
+  .slide h2.title-grad{ font-size:clamp(1.5rem,3vw,2.35rem); line-height:1.15; letter-spacing:-.005em; margin-bottom:6px; }
+
+  .lede{ font-size:clamp(1rem,1.3vw,1.18rem); color:var(--ink-soft); max-width:64ch; line-height:1.55; margin-top:14px; }
+  .kicker{ font-size:1.02rem; color:var(--ink-soft); line-height:1.6; max-width:70ch; }
+
+  em.hl{ font-style:normal; }
+
+  /* ============================= LAYOUT HELPERS ============================= */
+  .row{ display:flex; gap:clamp(20px,3vw,44px); align-items:flex-start; }
+  .col{ flex:1; min-width:0; }
+  .grid-2{ display:grid; grid-template-columns:1.1fr .9fr; gap:clamp(20px,3vw,44px); align-items:start; }
+  .stack{ display:flex; flex-direction:column; gap:16px; }
+
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:clamp(16px,2vw,26px); box-shadow:var(--shadow-card);
+  }
+
+  .card h3{ font-size:1.02rem; color:var(--blue-1); margin-bottom:8px; }
+  .card p{ font-size:.94rem; color:var(--ink-soft); line-height:1.55; }
+
+  ul.clean{ list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:11px; }
+  ul.clean li{ font-size:.96rem; color:var(--ink-soft); line-height:1.55; padding-left:20px; position:relative; }
+  ul.clean li::before{
+    content:''; position:absolute; left:0; top:.5em; width:7px; height:7px; border-radius:50%;
+    background:linear-gradient(135deg,var(--pink-1),var(--blue-2));
+  }
+  ul.clean b{ color:var(--ink); font-weight:600; }
+
+  .badge{
+    display:inline-flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:.72rem;
+    letter-spacing:.04em; padding:3px 9px; border-radius:20px; font-weight:600;
+  }
+  .badge.blue{ color:var(--blue-1); background:var(--blue-wash); border:1px solid rgba(9,78,134,0.22); }
+  .badge.pink{ color:#c23566; background:var(--pink-wash); border:1px solid rgba(255,93,143,0.28); }
+  .badge.gray{ color:var(--muted); background:#f0f1f2; border:1px solid #e3e5e8; }
+
+  /* ============================= EQUATIONS ============================= */
+  .eq-panel{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:clamp(18px,2.4vw,30px) clamp(18px,2.6vw,34px); box-shadow:var(--shadow-card);
+    overflow-x:auto;
+  }
+  .eq{
+    font-family:var(--font-display); font-size:clamp(1.05rem,1.9vw,1.55rem);
+    color:var(--ink); white-space:nowrap; display:flex; align-items:center; gap:.16em;
+  }
+  .eq .v{ font-style:italic; }
+  .eq .op{ font-style:normal; color:var(--blue-1); padding:0 .02em; }
+  .eq .const{ font-style:normal; color:#c23566; }
+  .eq sub, .eq sup{ font-size:.62em; }
+  .eq sub{ position:relative; top:.35em; }
+  .eq sup{ position:relative; top:-.55em; }
+  .frac{ display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle; font-size:.72em; line-height:1.05; margin:0 .12em; }
+  .frac .num{ border-bottom:1.6px solid var(--ink); padding:0 .18em .06em; }
+  .frac .den{ padding:.06em .18em 0; }
+  .bigop{ display:inline-flex; flex-direction:column; align-items:center; font-size:.5em; line-height:.95; margin:0 .06em; position:relative; top:.28em; color:var(--blue-1); }
+  .bigop .sym{ font-size:2.3em; line-height:.72; font-style:normal; }
+  .eq-caption{ margin-top:14px; font-family:var(--font-mono); font-size:.74rem; color:var(--muted); white-space:normal; }
+
+  .term-key{ display:flex; flex-wrap:wrap; gap:10px 22px; margin-top:16px; }
+  .term-key .item{ display:flex; align-items:baseline; gap:8px; font-size:.86rem; color:var(--ink-soft); }
+  .term-key .item .sym{ font-family:var(--font-display); font-style:italic; color:var(--blue-1); font-size:1.02rem; }
+
+  .callout{
+    margin-top:16px; border-left:3px solid var(--pink-1); background:var(--pink-wash);
+    border-radius:0 10px 10px 0; padding:11px 16px; font-size:.86rem; color:var(--ink-soft); line-height:1.55;
+  }
+  .callout b{ color:#c23566; }
+
+  /* ============================= CODE ============================= */
+  .code-panel{
+    background:var(--code-bg); border-radius:14px; padding:18px 20px; box-shadow:var(--shadow-card);
+    overflow-x:auto; max-height:100%;
+  }
+  .code-panel .fname{ font-family:var(--font-mono); font-size:.7rem; color:var(--code-muted); letter-spacing:.06em; margin-bottom:10px; display:flex; gap:8px; align-items:center; }
+  .code-panel .fname::before{ content:''; width:8px; height:8px; border-radius:50%; background:var(--pink-2); display:inline-block; }
+  pre.code{ margin:0; font-family:var(--font-mono); font-size:.78rem; line-height:1.62; color:var(--code-ink); }
+  .tok-kw{ color:var(--pink-2); }
+  .tok-str{ color:#9fd3ea; }
+  .tok-com{ color:var(--code-muted); font-style:italic; }
+  .tok-fn{ color:#f6c177; }
+  .tok-num{ color:#c9a7ff; }
+
+  /* ============================= TABLE ============================= */
+  .table-wrap{ overflow-x:auto; border-radius:14px; box-shadow:var(--shadow-card); }
+  table.cmp{ border-collapse:collapse; width:100%; min-width:760px; background:var(--surface); }
+  table.cmp th, table.cmp td{ text-align:left; padding:14px 18px; border-bottom:1px solid var(--line); font-size:.9rem; vertical-align:top; line-height:1.5; }
+  table.cmp thead th{
+    font-family:var(--font-mono); font-size:.7rem; letter-spacing:.07em; text-transform:uppercase;
+    color:#fff; background:linear-gradient(100deg,var(--blue-1),var(--blue-3)); border-bottom:none;
+  }
+  table.cmp thead th:first-child{ border-radius:0; }
+  table.cmp tbody th{ font-family:var(--font-body); font-weight:700; color:var(--blue-1); white-space:nowrap; background:var(--blue-wash); }
+  table.cmp tbody td{ color:var(--ink-soft); }
+  table.cmp tbody tr:last-child td, table.cmp tbody tr:last-child th{ border-bottom:none; }
+  table.cmp td b, table.cmp td .em{ color:var(--ink); }
+  .cell-tag{ display:inline-block; font-family:var(--font-mono); font-size:.68rem; padding:2px 7px; border-radius:6px; margin-bottom:5px; font-weight:700; letter-spacing:.03em; }
+  .cell-tag.bad{ background:#fde3e9; color:#b3355e; }
+  .cell-tag.mid{ background:#fff2d9; color:#a1720c; }
+  .cell-tag.good{ background:#e2f3ea; color:#1e7a4c; }
+
+  /* ============================= GRAPH WIDGET ============================= */
+  .lab{ display:grid; grid-template-columns:1.35fr 1fr; gap:22px; align-items:stretch; }
+  .graph-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow-card); padding:16px 16px 10px; display:flex; flex-direction:column; }
+  .graph-card svg{ width:100%; height:auto; display:block; }
+  .legend{ display:flex; flex-wrap:wrap; gap:14px 20px; padding:12px 4px 4px; border-top:1px solid var(--line); margin-top:10px; }
+  .legend .li{ display:flex; align-items:center; gap:7px; font-size:.78rem; color:var(--ink-soft); }
+  .legend .dot{ width:12px; height:12px; border-radius:50%; border:2px solid; display:inline-block; }
+
+  .panel-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow-card); padding:18px 20px; display:flex; flex-direction:column; gap:14px; }
+  .seg{ display:flex; background:#eef0f2; border-radius:10px; padding:3px; gap:3px; }
+  .seg button{
+    flex:1; border:none; background:transparent; padding:9px 6px; border-radius:8px; font-size:.82rem; font-weight:700;
+    color:var(--ink-soft); cursor:pointer; transition:background .2s, color .2s;
+    font-family:var(--font-body);
+  }
+  .seg button.active{ background:var(--surface); color:var(--blue-1); box-shadow:0 1px 3px rgba(9,30,50,.15); }
+  .seg button.active[data-mode="nnpu"]{ color:#c23566; }
+
+  .ctrl-row{ display:flex; gap:8px; }
+  .btn{
+    border:1px solid var(--line-strong); background:var(--surface); color:var(--blue-1); font-weight:700;
+    font-size:.8rem; padding:8px 14px; border-radius:9px; cursor:pointer; transition:transform .15s, box-shadow .15s;
+    font-family:var(--font-body);
+  }
+  .btn:hover{ box-shadow:0 4px 10px -4px rgba(9,78,134,.4); transform:translateY(-1px); }
+  .btn.primary{ background:linear-gradient(100deg,var(--blue-1),var(--blue-3)); color:#fff; border-color:transparent; }
+  .btn.ghost{ color:var(--ink-soft); border-color:var(--line); }
+
+  .switch-row{ display:flex; align-items:center; justify-content:space-between; font-size:.82rem; color:var(--ink-soft); }
+  .switch{ position:relative; width:38px; height:22px; border-radius:20px; background:#dfe3e8; cursor:pointer; transition:background .2s; flex-shrink:0; }
+  .switch::after{ content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition:transform .2s; }
+  .switch.on{ background:linear-gradient(100deg,var(--pink-1),var(--pink-3)); }
+  .switch.on::after{ transform:translateX(16px); }
+
+  .stat{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .stat .lbl{ font-size:.78rem; color:var(--ink-soft); }
+  .stat .val{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:.85rem; font-weight:700; color:var(--ink); }
+  .meter{ height:6px; border-radius:4px; background:#eceef1; overflow:hidden; position:relative; }
+  .meter > i{ display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,var(--blue-2),var(--blue-3)); width:0%; transition:width .5s ease; }
+  .meter.pink > i{ background:linear-gradient(90deg,var(--pink-1),var(--pink-3)); }
+
+  .diverge{ height:20px; border-radius:5px; background:#eceef1; position:relative; overflow:hidden; }
+  .diverge .zero{ position:absolute; left:50%; top:0; bottom:0; width:1px; background:var(--muted); opacity:.5; }
+  .diverge .bar{ position:absolute; top:2px; bottom:2px; border-radius:4px; transition:left .5s ease, width .5s ease, background .3s; }
+
+  .clamp-chip{
+    font-family:var(--font-mono); font-size:.72rem; font-weight:700; text-align:center; padding:7px 10px;
+    border-radius:8px; letter-spacing:.02em; transition:background .3s,color .3s;
+  }
+  .clamp-chip.flow{ background:var(--blue-wash); color:var(--blue-1); }
+  .clamp-chip.clamped{ background:var(--pink-wash); color:#c23566; }
+
+  .log{ font-family:var(--font-mono); font-size:.72rem; color:var(--muted); border-top:1px dashed var(--line); padding-top:10px; min-height:2.4em; line-height:1.5; }
+  .log b{ color:var(--ink-soft); }
+
+  /* ============================= CALCULATOR (WORKED EXAMPLE) ============================= */
+  .calc-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow-card); padding:18px 18px 16px; display:flex; flex-direction:column; }
+  table.calc-table{ width:100%; border-collapse:collapse; font-size:.85rem; }
+  table.calc-table th{
+    text-align:left; padding:7px 9px; font-family:var(--font-mono); font-size:.63rem; letter-spacing:.05em;
+    text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--line); font-weight:600;
+  }
+  table.calc-table .th-sub{ display:block; font-size:1.05em; font-weight:400; text-transform:none; letter-spacing:0; opacity:.7; margin-top:1px; }
+  table.calc-table td{
+    padding:6px 9px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; color:var(--ink-soft);
+    transition:opacity .3s ease, background .3s ease, color .3s ease; font-family:var(--font-mono); font-size:.82rem;
+  }
+  table.calc-table tr.calc-row td:first-child{ color:var(--muted); font-size:.76rem; }
+  .set-pill{ font-family:var(--font-mono); font-size:.62rem; font-weight:700; padding:2px 7px; border-radius:20px; }
+  .set-pill.P{ color:#c23566; background:var(--pink-wash); }
+  .set-pill.U{ color:var(--blue-1); background:var(--blue-wash); }
+  table.calc-table td.col-dim{ opacity:.3; }
+  table.calc-table tr.row-dim td{ opacity:.32; }
+  table.calc-table tr.row-hl{ background:var(--pink-wash); }
+  table.calc-table tr.row-hl.set-U{ background:var(--blue-wash); }
+  table.calc-table td.col-hl{ font-weight:700; color:var(--ink); opacity:1; }
+
+  .calc-foot{ font-family:var(--font-mono); font-size:.7rem; color:var(--muted); margin-top:12px; line-height:1.55; }
+
+  .calc-eq{
+    font-family:var(--font-mono); font-size:.86rem; color:var(--ink-soft); line-height:1.7;
+    background:var(--surface-2); border:1px dashed var(--line-strong); border-radius:10px; padding:12px 14px;
+    overflow-x:auto; white-space:nowrap;
+  }
+  .calc-eq b{ color:var(--blue-1); }
+
+  .scoreboard{ display:flex; flex-direction:column; }
+  .score-row{
+    display:flex; justify-content:space-between; align-items:baseline; padding:7px 2px; border-bottom:1px dashed var(--line);
+    font-size:.85rem; color:var(--muted); transition:color .3s ease;
+  }
+  .score-row:last-child{ border-bottom:none; }
+  .score-row .val{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:700; color:var(--muted); transition:color .3s ease; }
+  .score-row.revealed{ color:var(--ink-soft); }
+  .score-row.revealed .val{ color:var(--blue-1); }
+  .score-row.current{ color:var(--ink); }
+  .score-row.current .val{ color:#c23566; }
+  .score-row.final{ margin-top:2px; }
+  .score-row.final.revealed{ background:linear-gradient(90deg,var(--pink-wash),var(--blue-wash)); border-radius:9px; padding:9px 11px; border-bottom:none; }
+  .score-row.final.revealed .val{ font-size:1.05rem; }
+
+  /* ============================= NAV CHROME ============================= */
+  .brandmark{
+    position:fixed; top:22px; left:clamp(20px,4vw,40px); z-index:20; display:flex; align-items:center; gap:8px;
+    font-family:var(--font-mono); font-size:.72rem; letter-spacing:.08em; color:var(--blue-2); font-weight:700;
+  }
+  .brandmark .dotmark{ width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,var(--pink-1),var(--blue-1)); }
+
+  .counter{
+    position:fixed; top:22px; right:clamp(20px,4vw,40px); z-index:20;
+    font-family:var(--font-mono); font-size:.75rem; color:var(--muted); font-variant-numeric:tabular-nums;
+  }
+  .counter b{ color:var(--blue-1); }
+
+  .navbar{
+    position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:20;
+    display:flex; align-items:center; gap:16px; background:rgba(255,255,255,.86); backdrop-filter:blur(8px);
+    border:1px solid var(--line); border-radius:30px; padding:8px 10px; box-shadow:var(--shadow-card);
+  }
+  .navbtn{
+    width:34px; height:34px; border-radius:50%; border:none; background:var(--surface);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--blue-1);
+    box-shadow:0 1px 2px rgba(9,30,50,.15); transition:transform .15s, background .15s;
+  }
+  .navbtn:hover{ background:var(--blue-wash); transform:scale(1.06); }
+  .navbtn:disabled{ opacity:.3; cursor:default; transform:none; }
+  .navbtn svg{ width:15px; height:15px; }
+
+  .dots{ display:flex; gap:6px; align-items:center; }
+  .dots button{
+    width:7px; height:7px; border-radius:50%; border:none; background:#d7dbe0; cursor:pointer; padding:0;
+    transition:width .25s ease, background .25s ease;
+  }
+  .dots button.active{ width:20px; border-radius:5px; background:linear-gradient(90deg,var(--blue-2),var(--pink-1)); }
+
+  .progress-track{ position:fixed; top:0; left:0; right:0; height:3px; background:transparent; z-index:21; }
+  .progress-fill{ height:100%; background:linear-gradient(90deg,var(--blue-1),var(--pink-1)); transition:width .4s ease; }
+
+  ::-webkit-scrollbar{ width:9px; height:9px; }
+  ::-webkit-scrollbar-thumb{ background:#d6d9dd; border-radius:6px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+
+  /* ============================= RESPONSIVE ============================= */
+  @media (max-width: 880px){
+    .grid-2, .row, .lab{ grid-template-columns:1fr !important; flex-direction:column; }
+    .eq{ white-space:normal; }
+    table.cmp{ min-width:600px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .slide{ transition:opacity .15s linear !important; transform:none !important; }
+    *{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+
+  :focus-visible{ outline:2px solid var(--pink-1); outline-offset:2px; }
+</style>
+</head>
+<body>
+
+<div class="backdrop" aria-hidden="true"></div>
+<div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+<div class="brandmark"><span class="dotmark"></span>nnPU &middot; GNN</div>
+<div class="counter"><b id="curNum">01</b> / <span id="totalNum">12</span></div>
+
+<main class="deck" id="deck">
+
+  <!-- SLIDE 1 : TITLE -->
+  <section class="slide" data-title="Overview">
+    <div class="slide-inner" style="display:flex; flex-direction:column; justify-content:center; min-height:78vh;">
+      <p class="eyebrow">Positive-Unlabeled Learning on Graphs</p>
+      <h1 class="title-grad grad-blue" style="font-size:clamp(2.3rem,5.4vw,4.2rem);">Non-negative PU Loss<br>for Graph Neural Networks</h1>
+      <p class="lede">
+        Why treating every unlabeled node as a confirmed negative quietly poisons message passing &mdash;
+        and how the <span class="grad-pink" style="font-weight:600;">non-negative risk correction</span>
+        keeps deep GNN backbones from memorizing that mistake.
+      </p>
+      <div class="row" style="margin-top:38px; gap:14px; flex-wrap:wrap;">
+        <span class="badge blue">Semi-supervised node classification</span>
+        <span class="badge pink">Risk estimation theory</span>
+        <span class="badge gray">PyTorch Geometric</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 2 : THE PU PROBLEM ON GRAPHS -->
+  <section class="slide" data-title="Problem">
+    <div class="slide-inner">
+      <p class="eyebrow">Problem</p>
+      <h2 class="title-grad grad-blue">The PU problem on graphs</h2>
+      <p class="kicker">In many node-classification tasks &mdash; fraud rings, drug&ndash;target interactions, cited-prior-art detection &mdash; you only ever get <b>confirmed positives</b>. Everything else is <em class="grad-pink hl">unlabeled</em>, not negative.</p>
+
+      <div class="grid-2" style="margin-top:26px;">
+        <div class="stack">
+          <div class="card">
+            <h3>Why plain BCE breaks down</h3>
+            <p>Binary cross-entropy needs a 0/1 target for every node. The easy shortcut &mdash; label every unlabeled node <code>y=0</code> &mdash; silently asserts something you never verified: that none of them are secretly positive.</p>
+          </div>
+          <ul class="clean">
+            <li><b>Label bias.</b> Some fraction &pi; of the "negatives" are actually unverified positives, so the model is trained against corrupted ground truth from step one.</li>
+            <li><b>Confident wrongness.</b> BCE doesn't just under-perform &mdash; it actively pushes hidden-positive nodes toward the negative decision boundary, with full gradient force.</li>
+            <li><b>Compounding at scale.</b> The more unlabeled nodes dominate the graph (typical in PU settings), the more the loss surface is shaped by mislabeled examples.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>A concrete setting</h3>
+          <p>A transaction graph where <b style="color:var(--pink-1);">P</b> = accounts a fraud team has manually confirmed. Every other account is <b style="color:var(--blue-1);">U</b> &mdash; almost certainly mostly innocent, but with real fraud rings still hiding inside, undetected precisely <i>because</i> they look like everyone else.</p>
+          <p style="margin-top:10px;">Treating <b style="color:var(--blue-1);">U</b> as ground-truth negative teaches the model that fraud looks exactly like the confirmed cases and nothing else &mdash; the opposite of what you want it to learn.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 3 : MESSAGE PASSING AMPLIFIES THE BIAS -->
+  <section class="slide" data-title="Mechanism">
+    <div class="slide-inner">
+      <p class="eyebrow">Mechanism</p>
+      <h2 class="title-grad grad-blue">Message passing amplifies the bias</h2>
+      <p class="kicker">A GNN doesn't just misclassify individual nodes &mdash; it <em class="grad-pink hl">launders</em> the mistake through the graph structure, one aggregation step at a time.</p>
+
+      <div class="row" style="margin-top:26px;">
+        <div class="col" style="flex:0 0 46%;">
+          <div class="eq-panel">
+            <div class="eq">
+              <span class="v">h</span><sub>v</sub><sup>(l)</sup>
+              <span class="op">=</span>
+              <span class="op">UPDATE</span><span class="op">(</span>
+              <span class="v">h</span><sub>v</sub><sup>(l&minus;1)</sup><span class="op">,</span>
+              <span class="op">AGG</span><span class="op">{</span><span class="v">h</span><sub>u</sub><sup>(l&minus;1)</sup> <span class="op">:</span> <span class="v">u</span> &isin; <span class="v">N</span><span class="op">(</span><span class="v">v</span><span class="op">)</span><span class="op">}</span><span class="op">)</span>
+            </div>
+            <p class="eq-caption">Layer-<i>l</i> embedding of node <i>v</i> = combine its own prior embedding with an aggregate of its neighbors' embeddings.</p>
+          </div>
+        </div>
+        <div class="col">
+          <ul class="clean">
+            <li><b>Neighborhood contamination.</b> If a hidden-positive node's neighbors were all pushed toward "negative" by BCE, its own aggregated features drift the same way &mdash; even before its own label term is applied.</li>
+            <li><b>Feedback loop.</b> That drifted embedding gets re-aggregated into <em>its</em> neighbors on the next layer. Over <i>L</i> layers, one mislabeled region can bias a whole neighborhood's representations.</li>
+            <li><b>Depth makes it worse, not better.</b> Deeper GNNs have more capacity and more aggregation steps to fit the false-negative signal exactly &mdash; the opposite of the robustness we usually expect from depth.</li>
+          </ul>
+          <div class="callout"><b>Key idea &mdash;</b> the loss function and the aggregation operator interact. A biased per-node loss doesn't stay local; smoothing over the graph spreads it. Fixing the loss (nnPU) has to happen <i>before</i> the bias gets baked into shared representations.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 4 : BCE RECAP -->
+  <section class="slide" data-title="Theory I">
+    <div class="slide-inner">
+      <p class="eyebrow">Theory &middot; I of III</p>
+      <h2 class="title-grad grad-blue">Standard BCE on node predictions</h2>
+      <p class="kicker">The baseline every PU correction is measured against.</p>
+
+      <div class="eq-panel" style="margin-top:22px;">
+        <div class="eq">
+          <span class="v">L</span><sub>BCE</sub>
+          <span class="op">=</span>
+          <span class="op">&minus;</span>
+          <span class="frac"><span class="num">1</span><span class="den"><i class="v">n</i></span></span>
+          <span class="bigop"><span class="sym">&Sigma;</span></span>
+          <span class="op">[</span>
+          <span class="v">y</span><sub>i</sub><span class="op">log</span><span class="op">(</span><span class="v">g</span><span class="op">(</span><span class="v">x</span><sub>i</sub><span class="op">)</span><span class="op">)</span>
+          <span class="op">+</span>
+          <span class="op">(1&minus;</span><span class="v">y</span><sub>i</sub><span class="op">)</span><span class="op">log</span><span class="op">(1&minus;</span><span class="v">g</span><span class="op">(</span><span class="v">x</span><sub>i</sub><span class="op">)</span><span class="op">)</span>
+          <span class="op">]</span>
+        </div>
+        <p class="eq-caption">Averaged over all labeled nodes <i>i</i> = 1&hellip;<i>n</i>; g(x<sub>i</sub>) is the model's predicted P(y=1) for node <i>i</i>.</p>
+        <div class="term-key">
+          <span class="item"><span class="sym">g(x<sub>i</sub>)</span> the GNN's sigmoid output for node i</span>
+          <span class="item"><span class="sym">y<sub>i</sub></span> &isin; {0,1} &mdash; the (assumed) ground-truth label</span>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:20px;">
+        <b>The catch:</b> BCE has no notion of "unverified." The moment you set <i>y<sub>i</sub></i> = 0 for every node in <b style="color:var(--blue-1);">U</b>, you've told the optimizer those labels are exactly as trustworthy as the confirmed ones in <b style="color:var(--pink-1);">P</b>. They are not.
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 5 : uPU -->
+  <section class="slide" data-title="Theory II">
+    <div class="slide-inner">
+      <p class="eyebrow">Theory &middot; II of III</p>
+      <h2 class="title-grad grad-blue">uPU &mdash; an unbiased risk estimator</h2>
+      <p class="kicker">Instead of guessing labels for <b style="color:var(--blue-1);">U</b>, decompose the true risk algebraically so it only ever needs <b style="color:var(--pink-1);">P</b> and <b style="color:var(--blue-1);">U</b> &mdash; no negative labels required.</p>
+
+      <div class="eq-panel" style="margin-top:22px;">
+        <div class="eq">
+          <span class="v">R</span><span class="op">(</span><span class="v">g</span><span class="op">)</span>
+          <span class="op">=</span>
+          <span class="const">&pi;</span><span class="v">R</span><sub>p</sub><sup>+</sup><span class="op">(</span><span class="v">g</span><span class="op">)</span>
+          <span class="op">+</span>
+          <span class="v">R</span><sub>u</sub><sup>&minus;</sup><span class="op">(</span><span class="v">g</span><span class="op">)</span>
+          <span class="op">&minus;</span>
+          <span class="const">&pi;</span><span class="v">R</span><sub>p</sub><sup>&minus;</sup><span class="op">(</span><span class="v">g</span><span class="op">)</span>
+        </div>
+        <p class="eq-caption">du Plessis et al., 2014/2015 &mdash; the unbiased PU risk, written without any clamp.</p>
+        <div class="term-key">
+          <span class="item"><span class="sym">R<sub>p</sub><sup>+</sup></span> risk on P nodes, scored as if labeled +1</span>
+          <span class="item"><span class="sym">R<sub>u</sub><sup>&minus;</sup></span> risk on U nodes, scored as if labeled &minus;1</span>
+          <span class="item"><span class="sym">R<sub>p</sub><sup>&minus;</sup></span> risk on P nodes, scored as if labeled &minus;1</span>
+          <span class="item"><span class="sym">&pi;</span> the class prior, P(Y=+1)</span>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:20px;">
+        <div class="col card">
+          <h3>The intuition</h3>
+          <p>Treat every node in <b style="color:var(--blue-1);">U</b> as negative (that's <i>R<sub>u</sub><sup>&minus;</sup></i>), then <i>algebraically cancel out</i> the &pi; fraction of hidden positives you know are secretly sitting inside U &mdash; by subtracting how those same positives would score if you evaluated the labeled set <b style="color:var(--pink-1);">P</b> under a negative label instead.</p>
+        </div>
+        <div class="col card">
+          <h3>Why it's still fragile</h3>
+          <p>With flexible models &mdash; and GNN backbones are very flexible &mdash; the model can drive <i>R<sub>u</sub><sup>&minus;</sup>(g)</i> down faster than the correction term keeps up. The subtraction <i>R<sub>u</sub><sup>&minus;</sup> &minus; &pi;R<sub>p</sub><sup>&minus;</sup></i> can go <b>negative</b>, which is a mathematical impossibility for a real risk &mdash; a symptom of overfitting, not a valid solution.</p>
+        </div>
+      </div>
+      <div class="callout"><b>Note &mdash;</b> you'll sometimes see this whole expression written with a <code>max(0, &middot;)</code> already wrapped around the last two terms: <span style="font-family:var(--font-mono);">R(g) = &pi;R<sub>p</sub><sup>+</sup>(g) + max(0, R<sub>u</sub><sup>&minus;</sup>(g) &minus; &pi;R<sub>p</sub><sup>&minus;</sup>(g))</span>. That clamp is exactly the contribution nnPU adds &mdash; covered next.</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 6 : nnPU -->
+  <section class="slide" data-title="Theory III">
+    <div class="slide-inner">
+      <p class="eyebrow">Theory &middot; III of III</p>
+      <h2 class="title-grad grad-blue">nnPU &mdash; the non-negative correction</h2>
+      <p class="kicker">Kiryo et al., 2017 fix uPU's blow-up with one change: floor the correction term at zero.</p>
+
+      <div class="eq-panel" style="margin-top:22px;">
+        <div class="eq">
+          <span class="v">R</span><sub>pu</sub><span class="op">(</span><span class="v">g</span><span class="op">)</span>
+          <span class="op">=</span>
+          <span class="const">&pi;</span><span class="v">R</span><sub>p</sub><sup>+</sup><span class="op">(</span><span class="v">g</span><span class="op">)</span>
+          <span class="op">+</span>
+          <span class="op" style="color:#c23566; font-weight:700;">max</span><span class="op">(</span><span class="const">0</span><span class="op">,</span>
+          <span class="v">R</span><sub>u</sub><sup>&minus;</sup><span class="op">(</span><span class="v">g</span><span class="op">)</span>
+          <span class="op">&minus;</span>
+          <span class="const">&pi;</span><span class="v">R</span><sub>p</sub><sup>&minus;</sup><span class="op">(</span><span class="v">g</span><span class="op">)</span>
+          <span class="op">)</span>
+        </div>
+        <p class="eq-caption">The only difference from uPU: <span style="color:#c23566; font-weight:700;">max(0, &middot;)</span> around the correction term.</p>
+      </div>
+
+      <div class="grid-2" style="margin-top:22px;">
+        <div class="card">
+          <h3>What the floor actually does</h3>
+          <p>Whenever the correction term would dip negative &mdash; the model over-explaining <b style="color:var(--blue-1);">U</b> as negative &mdash; nnPU clamps it to exactly 0 for that step. In practice, implementations go one further: they run a small <b>gradient-ascent</b> step on the negated term instead, actively pushing the model back toward less negative-confident predictions on U.</p>
+        </div>
+        <div class="card">
+          <h3>Why this matters specifically for GNNs</h3>
+          <p>Deep GNN stacks are exactly the high-capacity regime where uPU's overfitting shows up fastest &mdash; more layers and parameters mean more ways to drive <i>R<sub>u</sub><sup>&minus;</sup></i> toward zero on the training partition. The non-negative floor is what makes nnPU practically usable with multi-layer GCN / GAT / GraphSAGE backbones instead of only shallow linear models.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 7 : CLASS PRIOR -->
+  <section class="slide" data-title="Parameter">
+    <div class="slide-inner">
+      <p class="eyebrow">Parameter</p>
+      <h2 class="title-grad grad-blue">The class prior &pi;</h2>
+      <p class="kicker">Every term in uPU / nnPU is scaled by a single number: <span class="grad-pink hl" style="font-weight:600;">&pi; = P(Y=+1)</span>, the true fraction of positives across P &cup; U.</p>
+
+      <div class="grid-2" style="margin-top:24px;">
+        <div class="stack">
+          <div class="card">
+            <h3>What it controls</h3>
+            <p>&pi; sets how much weight the "positive-flavored" correction &pi;R<sub>p</sub><sup>&minus;</sup> gets when it's subtracted back out of R<sub>u</sub><sup>&minus;</sup>. It is literally an estimate of <em>how many hidden positives are sitting inside U</em>.</p>
+          </div>
+          <div class="card">
+            <h3>Getting it wrong is costly</h3>
+            <p><b>&pi; too low</b> &mdash; under-corrects, the loss still behaves closer to naive BCE, bias persists.<br><b>&pi; too high</b> &mdash; over-corrects, the negative-risk term goes negative more often, triggering the nnPU clamp constantly and starving the model of gradient signal.</p>
+          </div>
+        </div>
+        <div class="card">
+          <h3>How it's estimated in practice</h3>
+          <ul class="clean">
+            <li><b>Domain priors.</b> Historical fraud rate, known contamination rate in a labeled audit sample, or a regulatory base rate.</li>
+            <li><b>Mixture proportion estimation (MPE).</b> Algorithms (e.g. KM1/KM2, elkan &amp; noto) that estimate &pi; directly from the P and U feature distributions.</li>
+            <li><b>Cross-validated grid search.</b> Sweep candidate &pi; values, pick the one that best matches held-out precision/recall behavior on a small verified subset.</li>
+          </ul>
+          <p style="margin-top:10px;">In GNN pipelines, &pi; is usually treated as a fixed hyperparameter for the whole graph, not something learned per-node.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 8 : MASKS -->
+  <section class="slide" data-title="Implementation">
+    <div class="slide-inner">
+      <p class="eyebrow">Implementation</p>
+      <h2 class="title-grad grad-blue">Masks in the GNN pipeline</h2>
+      <p class="kicker">nnPU's math is per-node; a GNN's forward pass is over the <em>whole</em> graph. Masks are how the two meet.</p>
+
+      <div class="row" style="margin-top:22px; align-items:stretch;">
+        <div class="col stack">
+          <div class="card">
+            <h3>Four boolean masks, one graph</h3>
+            <ul class="clean">
+              <li><b>train_pos_mask</b> &mdash; nodes with a confirmed positive label (P). Used only in the &pi;R<sub>p</sub><sup>+</sup> and &pi;R<sub>p</sub><sup>&minus;</sup> terms.</li>
+              <li><b>train_unl_mask</b> &mdash; every other training-partition node (U). Used only in the R<sub>u</sub><sup>&minus;</sup> term.</li>
+              <li><b>val_mask / test_mask</b> &mdash; held-out nodes with fully known ground truth, used <i>only</i> for evaluation metrics &mdash; never inside the loss.</li>
+            </ul>
+          </div>
+          <div class="callout"><b>Non-obvious but critical &mdash;</b> train_pos_mask and train_unl_mask are disjoint subsets of the same train_mask. A node is never in both; unlabeled nodes stay unlabeled even if they're secretly positive &mdash; that's the entire premise of PU learning.</div>
+        </div>
+        <div class="col card">
+          <h3>Forward pass stays transductive</h3>
+          <p>The GNN runs a <b>full-graph forward pass</b> &mdash; <code>model(x, edge_index)</code> over every node, train/val/test alike &mdash; because message passing needs the real neighborhood structure to produce correct embeddings, even for nodes that contribute no loss.</p>
+          <p style="margin-top:10px;">Masking happens <i>after</i> the forward pass, only at loss computation: you index <code>logits[train_pos_mask]</code> and <code>logits[train_unl_mask]</code> to build R<sub>p</sub><sup>+</sup>, R<sub>p</sub><sup>&minus;</sup>, and R<sub>u</sub><sup>&minus;</sup>. Val/test logits are computed but simply never touched by <code>loss.backward()</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 9 : PSEUDOCODE -->
+  <section class="slide" data-title="Code">
+    <div class="slide-inner">
+      <p class="eyebrow">Implementation &middot; PyTorch Geometric</p>
+      <h2 class="title-grad grad-blue">nnPU loss, end to end</h2>
+      <div class="code-panel" style="margin-top:18px;">
+        <div class="fname">nnpu_gnn.py</div>
+        <pre class="code" id="codeblock"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 10 : INTERACTIVE SIM -->
+  <section class="slide" data-title="Demo">
+    <div class="slide-inner">
+      <p class="eyebrow">Interactive</p>
+      <h2 class="title-grad grad-blue">Watch the clamp happen</h2>
+      <p class="kicker" style="margin-bottom:16px;">A toy 15-node graph. Step message passing under each loss and watch how hidden positives drift &mdash; then flip to nnPU and watch the correction term hit zero.</p>
+
+      <div class="lab">
+        <div class="graph-card">
+          <svg viewBox="0 0 600 340" id="graphSvg" role="img" aria-label="Interactive mini graph for the nnPU simulation"></svg>
+          <div class="legend">
+            <span class="li"><span class="dot" style="border-color:var(--pink-1); background:var(--pink-wash);"></span>Labeled positive (P)</span>
+            <span class="li"><span class="dot" style="border-color:var(--blue-1); background:var(--blue-wash);"></span>Unlabeled (U)</span>
+            <span class="li"><span class="dot" style="border-color:var(--pink-1); background:var(--pink-1); width:8px; height:8px;"></span>hidden positive (revealed)</span>
+            <span class="li"><span class="dot" style="border-color:var(--neutral-dot); background:var(--neutral-dot); width:8px; height:8px;"></span>true negative (revealed)</span>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="seg" role="tablist" aria-label="Loss mode">
+            <button data-mode="bce" class="active">Standard BCE</button>
+            <button data-mode="nnpu">nnPU</button>
+          </div>
+
+          <div class="switch-row">
+            <span>Reveal hidden positives</span>
+            <div class="switch" id="revealSwitch" role="switch" aria-checked="false" tabindex="0"></div>
+          </div>
+
+          <div class="stack" style="gap:10px;">
+            <div class="stat"><span class="lbl">&pi;&middot;R<sub>p</sub><sup>+</sup>  (pull P &rarr; positive)</span><span class="val" id="statPpos">0.00</span></div>
+            <div class="meter"><i id="barPpos"></i></div>
+
+            <div class="stat"><span class="lbl">R<sub>u</sub><sup>&minus;</sup>  (pull U &rarr; negative)</span><span class="val" id="statUneg">0.00</span></div>
+            <div class="meter pink"><i id="barUneg"></i></div>
+
+            <div class="stat"><span class="lbl">Correction  R<sub>u</sub><sup>&minus;</sup> &minus; &pi;R<sub>p</sub><sup>&minus;</sup></span><span class="val" id="statCorr">0.00</span></div>
+            <div class="diverge"><div class="zero"></div><div class="bar" id="barCorr"></div></div>
+          </div>
+
+          <div class="clamp-chip flow" id="clampChip">gradient flowing normally</div>
+
+          <div class="ctrl-row">
+            <button class="btn primary" id="stepBtn">Step &rarr;</button>
+            <button class="btn" id="playBtn">Play</button>
+            <button class="btn ghost" id="resetBtn">Reset</button>
+          </div>
+
+          <div class="log" id="logLine">Step 0 &mdash; ready. &pi; fixed at <b>0.30</b> for this toy graph.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 11 : STEP-BY-STEP LOSS CALCULATOR -->
+  <section class="slide" data-title="Walkthrough">
+    <div class="slide-inner">
+      <p class="eyebrow">Interactive &middot; Worked Example</p>
+      <h2 class="title-grad grad-blue">Calculating the nnPU loss, term by term</h2>
+      <p class="kicker" style="margin-bottom:16px;">A small worked example &mdash; 3 labeled positives, 6 unlabeled nodes. Step through the formula and watch every intermediate number get built from the raw predictions.</p>
+
+      <div class="lab">
+        <div class="calc-card">
+          <div class="table-wrap" style="box-shadow:none; border-radius:10px;">
+            <table class="calc-table">
+              <thead>
+                <tr>
+                  <th>Node</th>
+                  <th>Set</th>
+                  <th>g(x)</th>
+                  <th>&minus;ln(g)<span class="th-sub">loss if scored +1</span></th>
+                  <th>&minus;ln(1&minus;g)<span class="th-sub">loss if scored &minus;1</span></th>
+                </tr>
+              </thead>
+              <tbody id="calcBody"></tbody>
+            </table>
+          </div>
+          <div class="ctrl-row" style="margin-top:14px;">
+            <button class="btn" id="calcNudgeBtn">Push U toward overfitting</button>
+            <button class="btn ghost" id="calcResetBtn">Reset predictions</button>
+          </div>
+          <p class="calc-foot">Same per-node terms as the BCE slide &mdash; just grouped by which side of the P / U split each node falls on, then reweighted by &pi;. (The pseudocode slide uses an equivalent sigmoid-margin surrogate; log-loss is used here so the numbers match the BCE slide directly.)</p>
+        </div>
+
+        <div class="panel-card">
+          <div class="row" style="align-items:center; justify-content:space-between; gap:8px;">
+            <span class="badge blue" id="calcStepLabel">Step 1 of 5</span>
+            <span class="badge gray">&pi; = 0.30</span>
+          </div>
+          <h3 id="calcStepTitle" style="font-size:1.05rem; color:var(--ink);"></h3>
+          <p id="calcStepText" style="font-size:.87rem; color:var(--ink-soft); line-height:1.55;"></p>
+
+          <div class="calc-eq" id="calcEqLine"></div>
+
+          <div class="scoreboard" id="calcScoreboard">
+            <div class="score-row" data-reveal="1"><span class="lbl">&pi;&middot;R<sub>p</sub><sup>+</sup></span><span class="val" id="scorePpos">&mdash;</span></div>
+            <div class="score-row" data-reveal="2"><span class="lbl">&pi;&middot;R<sub>p</sub><sup>&minus;</sup></span><span class="val" id="scorePneg">&mdash;</span></div>
+            <div class="score-row" data-reveal="3"><span class="lbl">R<sub>u</sub><sup>&minus;</sup></span><span class="val" id="scoreUneg">&mdash;</span></div>
+            <div class="score-row" data-reveal="4"><span class="lbl">correction = R<sub>u</sub><sup>&minus;</sup> &minus; &pi;R<sub>p</sub><sup>&minus;</sup></span><span class="val" id="scoreCorr">&mdash;</span></div>
+            <div class="score-row final" data-reveal="4"><span class="lbl">L<sub>nnPU</sub></span><span class="val" id="scoreLoss">&mdash;</span></div>
+          </div>
+
+          <div class="clamp-chip flow" id="calcClampChip" style="display:none;"></div>
+
+          <div class="ctrl-row">
+            <button class="btn ghost" id="calcPrevBtn">&larr; Back</button>
+            <button class="btn primary" id="calcNextBtn">Next &rarr;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 12 : COMPARISON TABLE -->
+  <section class="slide" data-title="Comparison">
+    <div class="slide-inner">
+      <p class="eyebrow">Comparison</p>
+      <h2 class="title-grad grad-blue">BCE vs. uPU vs. nnPU</h2>
+      <div class="table-wrap" style="margin-top:20px;">
+        <table class="cmp">
+          <thead>
+            <tr><th>&nbsp;</th><th>Standard BCE</th><th>uPU</th><th>nnPU</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>Objective</th>
+              <td>Minimize cross-entropy, treating every unlabeled node as label 0.</td>
+              <td>Minimize an <em class="em">unbiased</em> risk estimator built from P and U via the class prior &pi;.</td>
+              <td>Same unbiased decomposition, with the negative-risk correction <b>floored at zero</b>.</td>
+            </tr>
+            <tr>
+              <th>Handling of unlabeled nodes</th>
+              <td><span class="cell-tag bad">Naive</span>Forced to y=0. Hidden positives are trained against directly.</td>
+              <td><span class="cell-tag mid">Corrected</span>Statistically re-weighted so hidden positives don't bias the risk in expectation.</td>
+              <td><span class="cell-tag good">Corrected + safe</span>Same correction, but bounded so it can never overshoot into an invalid negative risk.</td>
+            </tr>
+            <tr>
+              <th>Overfitting risk on GNNs</th>
+              <td><span class="cell-tag bad">High</span>Message passing spreads the false-negative bias across neighborhoods; deeper stacks compound it.</td>
+              <td><span class="cell-tag bad">High</span>Flexible, deep backbones drive R<sub>u</sub><sup>&minus;</sup> down fast &mdash; the correction term goes negative and the model memorizes noise.</td>
+              <td><span class="cell-tag good">Low</span>The floor stops the runaway negative-risk term, making it safe to train multi-layer GCN / GAT / SAGE stacks.</td>
+            </tr>
+            <tr>
+              <th>Loss stability</th>
+              <td><span class="cell-tag mid">Stable, biased</span>Smooth training curve, but converges to a systematically wrong decision boundary.</td>
+              <td><span class="cell-tag bad">Unstable</span>Empirical risk can go negative as capacity grows &mdash; no lower bound to anchor training.</td>
+              <td><span class="cell-tag good">Stable</span>Empirically validated by Kiryo et al. (2017) to train reliably even with high-capacity models.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 13 : TAKEAWAYS -->
+  <section class="slide" data-title="Summary">
+    <div class="slide-inner">
+      <p class="eyebrow">Summary</p>
+      <h2 class="title-grad grad-blue">Takeaways</h2>
+
+      <div class="grid-2" style="margin-top:24px;">
+        <ul class="clean" style="font-size:1rem;">
+          <li><b>BCE assumes what PU learning explicitly doesn't know</b> &mdash; that unlabeled means negative. On a graph, that wrong assumption spreads through every aggregation step.</li>
+          <li><b>uPU fixes the bias algebraically</b>, but its correction term has no floor &mdash; and high-capacity GNNs are exactly the models that will find and exploit that gap.</li>
+          <li><b>nnPU's <code>max(0, &middot;)</code> floor</b> is a small formula change with an outsized practical effect: it's what makes PU learning viable on deep message-passing architectures at all.</li>
+          <li><b>The class prior &pi;</b> is doing real work in every term &mdash; treat estimating it as a first-class modeling decision, not an afterthought.</li>
+          <li><b>Masks, not subgraphs.</b> Always run the full-graph forward pass; only the loss computation should ever be masked.</li>
+        </ul>
+        <div class="card">
+          <h3>Further reading</h3>
+          <p style="margin-bottom:10px;">du Plessis, Niu &amp; Sugiyama (2014/2015) &mdash; unbiased PU risk estimation.<br>
+          Kiryo, Niu, du Plessis &amp; Sugiyama (2017) &mdash; <i>Positive-Unlabeled Learning with Non-Negative Risk Estimator</i>, NeurIPS.</p>
+          <p>Applying nnPU under graph message passing is an active pattern in fraud/anomaly detection and interaction-prediction work on graphs &mdash; the loss theory here transfers directly; the graph only changes how the underlying scores g(x) are produced.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<nav class="navbar" aria-label="Slide navigation">
+  <button class="navbtn" id="prevBtn" aria-label="Previous slide">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <div class="dots" id="dots"></div>
+  <button class="navbtn" id="nextBtn" aria-label="Next slide">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+</nav>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================= SLIDE ENGINE ============================= */
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var idx = 0;
+
+  var dotsEl = document.getElementById('dots');
+  var curNumEl = document.getElementById('curNum');
+  var totalNumEl = document.getElementById('totalNum');
+  var progressFill = document.getElementById('progressFill');
+  var prevBtn = document.getElementById('prevBtn');
+  var nextBtn = document.getElementById('nextBtn');
+
+  totalNumEl.textContent = String(total).padStart(2,'0');
+
+  slides.forEach(function(_, i){
+    var b = document.createElement('button');
+    b.setAttribute('aria-label', 'Go to slide ' + (i+1));
+    b.addEventListener('click', function(){ goTo(i); });
+    dotsEl.appendChild(b);
+  });
+  var dotEls = Array.prototype.slice.call(dotsEl.children);
+
+  function render(){
+    slides.forEach(function(s, i){
+      s.classList.toggle('active', i === idx);
+      s.classList.toggle('leaving-back', false);
+    });
+    dotEls.forEach(function(d, i){ d.classList.toggle('active', i === idx); });
+    curNumEl.textContent = String(idx+1).padStart(2,'0');
+    progressFill.style.width = (((idx+1)/total)*100) + '%';
+    prevBtn.disabled = idx === 0;
+    nextBtn.disabled = idx === total-1;
+  }
+
+  function goTo(n){
+    idx = Math.max(0, Math.min(total-1, n));
+    render();
+  }
+  function next(){ if(idx < total-1) goTo(idx+1); }
+  function prev(){ if(idx > 0) goTo(idx-1); }
+
+  prevBtn.addEventListener('click', prev);
+  nextBtn.addEventListener('click', next);
+
+  document.addEventListener('keydown', function(e){
+    var active = document.activeElement;
+    var tag = active && active.tagName;
+    var isControl = tag === 'BUTTON' || tag === 'INPUT' || tag === 'TEXTAREA' ||
+      (active && active.getAttribute && active.getAttribute('role') === 'switch');
+    if (e.key === ' ' && isControl) return; // let the focused control handle its own activation
+
+    if (['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)) { e.preventDefault(); next(); }
+    else if (['ArrowLeft','ArrowUp','PageUp'].includes(e.key)) { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+    else if (e.key === 'End') { e.preventDefault(); goTo(total-1); }
+  });
+
+  var touchStartX = null;
+  document.addEventListener('touchstart', function(e){ touchStartX = e.touches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    if (touchStartX === null) return;
+    var dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 60) { dx < 0 ? next() : prev(); }
+    touchStartX = null;
+  }, {passive:true});
+
+  render();
+
+  /* ============================= CODE HIGHLIGHT ============================= */
+  var codeSrc =
+"import torch\n" +
+"import torch.nn.functional as F\n" +
+"from torch_geometric.nn import GCNConv\n" +
+"\n" +
+"class PUGCN(torch.nn.Module):\n" +
+"    def __init__(self, in_dim, hidden_dim):\n" +
+"        super().__init__()\n" +
+"        self.conv1 = GCNConv(in_dim, hidden_dim)\n" +
+"        self.conv2 = GCNConv(hidden_dim, hidden_dim)\n" +
+"        self.classifier = torch.nn.Linear(hidden_dim, 1)\n" +
+"\n" +
+"    def forward(self, x, edge_index):\n" +
+"        h = F.relu(self.conv1(x, edge_index))\n" +
+"        h = F.relu(self.conv2(h, edge_index))\n" +
+"        logits = self.classifier(h).squeeze(-1)   # [num_nodes], full graph\n" +
+"        return logits\n" +
+"\n" +
+"\n" +
+"def nnpu_loss(logits, pos_mask, unl_mask, prior, beta=0.0):\n" +
+"    # logits    : raw scores for every node (full-graph forward pass)\n" +
+"    # pos_mask  : bool[num_nodes] -- labeled positive (P) nodes, this split\n" +
+"    # unl_mask  : bool[num_nodes] -- unlabeled (U) nodes, this split\n" +
+"    # prior     : float, pi = P(Y=+1) estimated on P union U\n" +
+"    sigmoid_loss = lambda z: torch.sigmoid(-z)   # smooth surrogate for 0/1 loss\n" +
+"\n" +
+"    p_logits = logits[pos_mask]\n" +
+"    u_logits = logits[unl_mask]\n" +
+"\n" +
+"    R_p_plus  = sigmoid_loss(p_logits).mean()     # loss on P, scored as +1\n" +
+"    R_p_minus = sigmoid_loss(-p_logits).mean()    # loss on P, scored as -1\n" +
+"    R_u_minus = sigmoid_loss(-u_logits).mean()    # loss on U, scored as -1\n" +
+"\n" +
+"    positive_risk = prior * R_p_plus\n" +
+"    negative_risk = R_u_minus - prior * R_p_minus\n" +
+"\n" +
+"    if negative_risk.item() >= beta:\n" +
+"        return positive_risk + negative_risk, False   # normal nnPU step\n" +
+"    else:\n" +
+"        return -negative_risk, True   # non-negative correction: gradient ascent\n" +
+"\n" +
+"\n" +
+"# --- training loop -----------------------------------------------------\n" +
+"for epoch in range(num_epochs):\n" +
+"    model.train()\n" +
+"    logits = model(data.x, data.edge_index)          # full-graph, all nodes\n" +
+"    loss, clamped = nnpu_loss(\n" +
+"        logits,\n" +
+"        pos_mask=data.train_pos_mask,\n" +
+"        unl_mask=data.train_unl_mask,\n" +
+"        prior=pi_hat,\n" +
+"    )\n" +
+"    optimizer.zero_grad()\n" +
+"    loss.backward()\n" +
+"    optimizer.step()";
+
+  function escapeHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function highlight(src){
+    var lines = escapeHtml(src).split('\n');
+    var kw = /\b(import|from|class|def|self|return|if|else|for|in|True|False|lambda)\b/g;
+    var fn = /\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\()/g;
+    var num = /\b(\d+\.?\d*)\b/g;
+    return lines.map(function(line){
+      var commentIdx = line.indexOf('#');
+      var code = commentIdx === -1 ? line : line.slice(0, commentIdx);
+      var comment = commentIdx === -1 ? '' : line.slice(commentIdx);
+      code = code.replace(kw, '<span class="tok-kw">$1</span>');
+      code = code.replace(fn, function(m, name){
+        if (['torch','F','GCNConv','nn'].includes(name)) return m;
+        return '<span class="tok-fn">'+name+'</span>';
+      });
+      code = code.replace(num, '<span class="tok-num">$1</span>');
+      if (comment) code += '<span class="tok-com">'+comment+'</span>';
+      return code;
+    }).join('\n');
+  }
+  document.getElementById('codeblock').innerHTML = highlight(codeSrc);
+
+  /* ============================= GRAPH SIMULATION ============================= */
+  var NODES = [
+    {id:0,  x:130, y:78,  cls:'P'},
+    {id:1,  x:232, y:52,  cls:'U', secret:'neg'},
+    {id:2,  x:322, y:86,  cls:'U', secret:'pos'},
+    {id:3,  x:182, y:140, cls:'U', secret:'neg'},
+    {id:4,  x:92,  y:182, cls:'P'},
+    {id:5,  x:272, y:176, cls:'U', secret:'neg'},
+    {id:6,  x:362, y:150, cls:'U', secret:'pos'},
+    {id:7,  x:424, y:70,  cls:'U', secret:'pos'},
+    {id:8,  x:480, y:140, cls:'P'},
+    {id:9,  x:434, y:222, cls:'U', secret:'neg'},
+    {id:10, x:342, y:256, cls:'U', secret:'neg'},
+    {id:11, x:212, y:264, cls:'U', secret:'neg'},
+    {id:12, x:132, y:236, cls:'U', secret:'pos'},
+    {id:13, x:498, y:46,  cls:'U', secret:'neg'},
+    {id:14, x:58,  y:112, cls:'U', secret:'neg'}
+  ];
+  var EDGES = [
+    [0,1],[0,3],[0,14],[1,2],[1,3],[2,6],[2,7],[3,4],[3,5],
+    [4,12],[4,14],[5,6],[5,11],[6,7],[6,9],[7,8],[7,13],[8,9],
+    [9,10],[10,11],[11,12],[2,13]
+  ];
+  var PI = 0.30;
+  var LR = 0.55;
+
+  var state = { mode:'bce', revealed:false, p:{}, step:0, playing:false, playTimer:null };
+
+  function initState(){
+    NODES.forEach(function(n){
+      state.p[n.id] = (n.cls === 'P') ? 0.90 : 0.50;
+    });
+    state.step = 0;
+    stopPlay();
+    log('Step 0 &mdash; ready. &pi; fixed at <b>0.30</b> for this toy graph.');
+    updateRisk();
+  }
+
+  var svg = document.getElementById('graphSvg');
+  var svgNS = 'http://www.w3.org/2000/svg';
+
+  function buildGraph(){
+    svg.innerHTML = '';
+    var edgeLayer = document.createElementNS(svgNS,'g');
+    var pulseLayer = document.createElementNS(svgNS,'g');
+    var nodeLayer = document.createElementNS(svgNS,'g');
+    svg.appendChild(edgeLayer); svg.appendChild(pulseLayer); svg.appendChild(nodeLayer);
+
+    EDGES.forEach(function(e){
+      var a = NODES[e[0]], b = NODES[e[1]];
+      var line = document.createElementNS(svgNS,'line');
+      line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
+      line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
+      line.setAttribute('stroke', 'rgba(9,78,134,0.22)');
+      line.setAttribute('stroke-width', '1.4');
+      edgeLayer.appendChild(line);
+    });
+
+    NODES.forEach(function(n){
+      var g = document.createElementNS(svgNS,'g');
+      g.setAttribute('data-id', n.id);
+      var r = n.cls === 'P' ? 15 : 13;
+      var color = n.cls === 'P' ? getCss('--pink-1') : getCss('--blue-1');
+      var wash  = n.cls === 'P' ? 'rgba(255,93,143,0.10)' : 'rgba(9,78,134,0.08)';
+
+      var ring = document.createElementNS(svgNS,'circle');
+      ring.setAttribute('cx', n.x); ring.setAttribute('cy', n.y); ring.setAttribute('r', r+5);
+      ring.setAttribute('fill','none'); ring.setAttribute('stroke', color);
+      ring.setAttribute('stroke-width','2.6'); ring.setAttribute('stroke-linecap','round');
+      ring.setAttribute('transform', 'rotate(-90 '+n.x+' '+n.y+')');
+      ring.setAttribute('opacity','0.55');
+      ring.setAttribute('class','probring');
+
+      var circle = document.createElementNS(svgNS,'circle');
+      circle.setAttribute('cx', n.x); circle.setAttribute('cy', n.y); circle.setAttribute('r', r);
+      circle.setAttribute('fill', wash); circle.setAttribute('stroke', color); circle.setAttribute('stroke-width','2');
+
+      var inner = document.createElementNS(svgNS,'circle');
+      inner.setAttribute('cx', n.x); inner.setAttribute('cy', n.y); inner.setAttribute('r', 4.2);
+      inner.setAttribute('class','innerdot'); inner.setAttribute('opacity','0');
+
+      var label = document.createElementNS(svgNS,'text');
+      label.setAttribute('x', n.x); label.setAttribute('y', n.y + r + 15);
+      label.setAttribute('text-anchor','middle');
+      label.setAttribute('font-family', 'var(--font-mono)');
+      label.setAttribute('font-size','9.5');
+      label.setAttribute('fill', '#818b98');
+      label.setAttribute('class','plabel');
+
+      g.appendChild(ring); g.appendChild(circle); g.appendChild(inner); g.appendChild(label);
+      nodeLayer.appendChild(g);
+    });
+    window._pulseLayer = pulseLayer;
+  }
+
+  function getCss(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+  function renderGraph(){
+    NODES.forEach(function(n){
+      var g = svg.querySelector('g[data-id="'+n.id+'"]');
+      if(!g) return;
+      var p = state.p[n.id];
+      var r = n.cls === 'P' ? 15 : 13;
+      var circumf = 2*Math.PI*(r+5);
+      var ring = g.querySelector('.probring');
+      ring.setAttribute('stroke-dasharray', (circumf*p).toFixed(1) + ' ' + circumf.toFixed(1));
+      ring.setAttribute('stroke', p >= 0.5 ? getCss('--pink-1') : getCss('--blue-1'));
+
+      var inner = g.querySelector('.innerdot');
+      if (state.revealed && n.cls === 'U'){
+        inner.setAttribute('opacity','1');
+        inner.setAttribute('fill', n.secret === 'pos' ? getCss('--pink-1') : getCss('--neutral-dot'));
+      } else {
+        inner.setAttribute('opacity','0');
+      }
+
+      g.querySelector('.plabel').textContent = 'p=' + p.toFixed(2);
+    });
+  }
+
+  function pulseEdges(cb){
+    if (prefersReducedMotion()) { if(cb) cb(); return; }
+    var layer = window._pulseLayer;
+    var duration = 550;
+    var pairs = [];
+    EDGES.forEach(function(e){ pairs.push([e[0],e[1]]); pairs.push([e[1],e[0]]); });
+    var active = pairs.length;
+    var fired = false;
+    function finish(){ if (fired) return; fired = true; if (cb) cb(); }
+
+    pairs.forEach(function(pair){
+      var a = NODES[pair[0]], b = NODES[pair[1]];
+      var dot = document.createElementNS(svgNS,'circle');
+      dot.setAttribute('r','2.6');
+      dot.setAttribute('fill', getCss('--pink-1'));
+      dot.setAttribute('opacity','0.85');
+      layer.appendChild(dot);
+      var t0 = performance.now() + Math.random()*120;
+      (function animate(now){
+        var t = (now - t0) / duration;
+        if (t < 0){ requestAnimationFrame(animate); return; }
+        if (t >= 1){ dot.remove(); active--; if (active<=0) finish(); return; }
+        var x = a.x + (b.x-a.x)*t, y = a.y + (b.y-a.y)*t;
+        dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+        requestAnimationFrame(animate);
+      })(performance.now());
+    });
+  }
+
+  function prefersReducedMotion(){
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  /* --- risk math (illustrative linear proxies, not literal log-loss) --- */
+  function computeRisk(){
+    var pNodes = NODES.filter(function(n){ return n.cls==='P'; });
+    var uNodes = NODES.filter(function(n){ return n.cls==='U'; });
+    var R_p_plus  = avg(pNodes.map(function(n){ return 1 - state.p[n.id]; }));
+    var R_p_minus = avg(pNodes.map(function(n){ return state.p[n.id]; }));
+    var R_u_minus = avg(uNodes.map(function(n){ return state.p[n.id]; }));
+    var correction = R_u_minus - PI * R_p_minus;
+    return { R_p_plus:R_p_plus, R_p_minus:R_p_minus, R_u_minus:R_u_minus, correction:correction };
+  }
+  function avg(arr){ return arr.reduce(function(a,b){return a+b;},0) / arr.length; }
+
+  function updateRisk(){
+    var r = computeRisk();
+    document.getElementById('statPpos').textContent = (PI*r.R_p_plus).toFixed(3);
+    document.getElementById('barPpos').style.width = Math.min(100, PI*r.R_p_plus*160) + '%';
+    document.getElementById('statUneg').textContent = r.R_u_minus.toFixed(3);
+    document.getElementById('barUneg').style.width = Math.min(100, r.R_u_minus*110) + '%';
+    document.getElementById('statCorr').textContent = r.correction.toFixed(3);
+
+    var bar = document.getElementById('barCorr');
+    var pct = Math.max(-50, Math.min(50, r.correction*140));
+    if (pct >= 0){ bar.style.left = '50%'; bar.style.width = pct + '%'; bar.style.background = getCss('--pink-2'); }
+    else { bar.style.left = (50+pct) + '%'; bar.style.width = (-pct) + '%'; bar.style.background = getCss('--blue-2'); }
+
+    var chip = document.getElementById('clampChip');
+    if (state.mode === 'nnpu' && r.correction < 0){
+      chip.textContent = 'clamped to 0 — gradient reversed';
+      chip.classList.add('clamped'); chip.classList.remove('flow');
+    } else {
+      chip.textContent = state.mode === 'nnpu' ? 'gradient flowing normally' : 'BCE: always pulling U → negative';
+      chip.classList.remove('clamped'); chip.classList.add('flow');
+    }
+    return r;
+  }
+
+  function log(html){ document.getElementById('logLine').innerHTML = html; }
+
+  function doStep(){
+    var uNodes = NODES.filter(function(n){ return n.cls==='U'; });
+    var r = computeRisk();
+
+    // 1. message passing: U nodes drift toward neighbor average
+    var newP = {};
+    NODES.forEach(function(n){
+      if (n.cls === 'P'){ newP[n.id] = state.p[n.id]; return; }
+      var neigh = EDGES.filter(function(e){ return e[0]===n.id || e[1]===n.id; })
+                        .map(function(e){ return e[0]===n.id ? e[1] : e[0]; });
+      var neighAvg = avg(neigh.map(function(id){ return state.p[id]; }));
+      newP[n.id] = 0.65*state.p[n.id] + 0.35*neighAvg;
+    });
+
+    // 2. loss-driven pull
+    var pull;
+    if (state.mode === 'bce'){
+      pull = 1.0; // full, unconditional pull toward "negative" for every U node
+    } else {
+      pull = r.correction > 0 ? Math.min(1, r.correction*2.2) : -0.5; // clamp -> gentle push-back
+    }
+
+    uNodes.forEach(function(n){
+      var p = newP[n.id];
+      if (pull >= 0){ p = p - pull*LR*0.30*p; }
+      else { p = p + (-pull)*LR*0.22*(1-p); }
+      newP[n.id] = Math.max(0.03, Math.min(0.97, p));
+    });
+
+    state.p = newP;
+    state.step++;
+
+    var stepMsg;
+    if (state.mode === 'bce'){
+      stepMsg = 'Step ' + state.step + ' &mdash; BCE pulls every U node toward 0, full strength, regardless of hidden positives.';
+    } else if (r.correction > 0){
+      stepMsg = 'Step ' + state.step + ' &mdash; correction = ' + r.correction.toFixed(3) + ' (&gt; 0): nnPU behaves like uPU this step.';
+    } else {
+      stepMsg = 'Step ' + state.step + ' &mdash; correction would go negative: <b>clamped to 0</b>, gradient reversed to counteract overfitting.';
+    }
+    log(stepMsg);
+  }
+
+  function stepOnce(){
+    pulseEdges(function(){
+      doStep();
+      renderGraph();
+      updateRisk();
+    });
+  }
+
+  function stopPlay(){
+    state.playing = false;
+    document.getElementById('playBtn').textContent = 'Play';
+    if (state.playTimer){ clearTimeout(state.playTimer); state.playTimer = null; }
+  }
+
+  function playLoop(){
+    if (!state.playing) return;
+    stepOnce();
+    if (state.step >= 12){ stopPlay(); return; }
+    state.playTimer = setTimeout(playLoop, 950);
+  }
+
+  document.getElementById('stepBtn').addEventListener('click', function(){ stopPlay(); stepOnce(); });
+  document.getElementById('resetBtn').addEventListener('click', function(){ initState(); renderGraph(); });
+  document.getElementById('playBtn').addEventListener('click', function(){
+    if (state.playing){ stopPlay(); }
+    else { state.playing = true; document.getElementById('playBtn').textContent = 'Pause'; playLoop(); }
+  });
+
+  document.querySelectorAll('.seg button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.seg button').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      state.mode = btn.getAttribute('data-mode');
+      stopPlay();
+      // Deliberately keep current predictions/step count: switching modes mid-drift
+      // is the point — it lets nnPU's clamp catch whatever BCE already pushed toward negative.
+      log('Switched to <b>' + (state.mode === 'nnpu' ? 'nnPU' : 'standard BCE') + '</b> at step ' + state.step + ' &mdash; predictions carried over, keep stepping to compare.');
+      renderGraph();
+      updateRisk();
+    });
+  });
+
+  var revealSwitch = document.getElementById('revealSwitch');
+  function toggleReveal(){
+    state.revealed = !state.revealed;
+    revealSwitch.classList.toggle('on', state.revealed);
+    revealSwitch.setAttribute('aria-checked', String(state.revealed));
+    renderGraph();
+  }
+  revealSwitch.addEventListener('click', toggleReveal);
+  revealSwitch.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleReveal(); } });
+
+  buildGraph();
+  initState();
+  renderGraph();
+
+  /* ============================= STEP-BY-STEP LOSS CALCULATOR ============================= */
+  var CALC_P_INIT = [ {label:'P1', g:0.88}, {label:'P2', g:0.93}, {label:'P3', g:0.81} ];
+  var CALC_U_INIT = [ {label:'U1', g:0.55}, {label:'U2', g:0.62}, {label:'U3', g:0.48}, {label:'U4', g:0.51}, {label:'U5', g:0.59}, {label:'U6', g:0.44} ];
+  var CALC_P, CALC_U, calcRows = [];
+  var calcState = { step:0 };
+
+  var CALC_STEPS = [
+    {
+      badge:'Step 1 of 5',
+      title:'Start with the predictions',
+      text:function(){ return 'The GNN&rsquo;s forward pass has already produced a predicted probability g(x) for every node &mdash; three labeled positives (P) and six unlabeled nodes (U). Nothing has been combined yet.'; },
+      eq:function(){ return '<span style="color:var(--muted);">g(P1&hellip;P3), g(U1&hellip;U6) &mdash; read off the table on the left &rarr;</span>'; }
+    },
+    {
+      badge:'Step 2 of 5',
+      title:'π·Rₚ⁺ &mdash; reward confidence on P',
+      text:function(){ return 'For every labeled-positive node, score the cost of <em>not</em> predicting it positive: &minus;ln(g(x)). Average the three, then scale by the class prior &pi; = 0.30.'; },
+      eq:function(r){
+        return 'R<sub>p</sub><sup>+</sup> = (' + r.rpPlusArr.map(function(v){return v.toFixed(3);}).join(' + ') + ') / 3 = <b>' + r.Rp_plus.toFixed(3) + '</b><br>' +
+               'π·R<sub>p</sub><sup>+</sup> = 0.30 &times; ' + r.Rp_plus.toFixed(3) + ' = <b>' + r.posRisk.toFixed(3) + '</b>';
+      }
+    },
+    {
+      badge:'Step 3 of 5',
+      title:'π·Rₚ⁻ &mdash; the same P nodes, scored as negative',
+      text:function(){ return 'Now ask the opposite question of the same three P nodes: what would it cost if we&rsquo;d called them negative? &minus;ln(1&minus;g(x)), averaged, then scaled by &pi;. This is the term that gets subtracted back out next.'; },
+      eq:function(r){
+        return 'R<sub>p</sub><sup>&minus;</sup> = (' + r.rpMinusArr.map(function(v){return v.toFixed(3);}).join(' + ') + ') / 3 = <b>' + r.Rp_minus.toFixed(3) + '</b><br>' +
+               'π·R<sub>p</sub><sup>&minus;</sup> = 0.30 &times; ' + r.Rp_minus.toFixed(3) + ' = <b>' + r.negTermRaw.toFixed(3) + '</b>';
+      }
+    },
+    {
+      badge:'Step 4 of 5',
+      title:'Rᵤ⁻ &mdash; treat every unlabeled node as negative',
+      text:function(){ return 'This is the naive BCE assumption &mdash; applied only to U. Score every unlabeled node as if it were confirmed negative, &minus;ln(1&minus;g(x)), and average across all six.'; },
+      eq:function(r){
+        return 'R<sub>u</sub><sup>&minus;</sup> = (' + r.ruMinusArr.map(function(v){return v.toFixed(3);}).join(' + ') + ') / 6 = <b>' + r.Ru_minus.toFixed(3) + '</b>';
+      }
+    },
+    {
+      badge:'Step 5 of 5',
+      title:'Combine, subtract, and clamp',
+      text:function(r){
+        return r.clamped
+          ? 'Subtract the correction from R<sub>u</sub><sup>&minus;</sup>: it dips below zero &mdash; a mathematically impossible risk. nnPU floors it at 0 and reverses the gradient instead of letting the optimizer keep chasing it down.'
+          : 'Subtract the correction from R<sub>u</sub><sup>&minus;</sup>: it stays non-negative, so nnPU behaves exactly like uPU here &mdash; no clamping needed yet.';
+      },
+      eq:function(r){
+        var line1 = 'correction = R<sub>u</sub><sup>&minus;</sup> &minus; πR<sub>p</sub><sup>&minus;</sup> = ' + r.Ru_minus.toFixed(3) + ' &minus; ' + r.negTermRaw.toFixed(3) + ' = <b>' + r.correction.toFixed(3) + '</b>' + (r.clamped ? ' &rarr; clamped to <b>0</b>' : '');
+        var line2 = 'L<sub>nnPU</sub> = πR<sub>p</sub><sup>+</sup> + max(0, correction) = ' + r.posRisk.toFixed(3) + ' + ' + Math.max(0,r.correction).toFixed(3) + ' = <b style="color:#c23566;">' + r.loss.toFixed(3) + '</b>';
+        return line1 + '<br>' + line2;
+      }
+    }
+  ];
+
+  function nlogc(x){ return -Math.log(Math.max(1e-4, Math.min(1-1e-4, x))); }
+  function avgc(arr){ return arr.reduce(function(a,b){return a+b;},0) / arr.length; }
+
+  function calcResetData(){
+    // Mutate existing node objects in place (rather than replacing the arrays) so
+    // calcRows — built once against these object references — stays in sync.
+    if (!CALC_P){
+      CALC_P = CALC_P_INIT.map(function(n){ return { label:n.label, g:n.g }; });
+      CALC_U = CALC_U_INIT.map(function(n){ return { label:n.label, g:n.g }; });
+    } else {
+      CALC_P.forEach(function(n, i){ n.g = CALC_P_INIT[i].g; });
+      CALC_U.forEach(function(n, i){ n.g = CALC_U_INIT[i].g; });
+    }
+  }
+
+  function calcNudgeData(){
+    CALC_U.forEach(function(n){ n.g = Math.max(0.04, n.g * 0.85); });
+  }
+
+  function calcCompute(){
+    var rpPlusArr = CALC_P.map(function(n){ return nlogc(n.g); });
+    var rpMinusArr = CALC_P.map(function(n){ return nlogc(1-n.g); });
+    var ruMinusArr = CALC_U.map(function(n){ return nlogc(1-n.g); });
+    var Rp_plus = avgc(rpPlusArr), Rp_minus = avgc(rpMinusArr), Ru_minus = avgc(ruMinusArr);
+    var posRisk = PI * Rp_plus;
+    var negTermRaw = PI * Rp_minus;
+    var correction = Ru_minus - negTermRaw;
+    var clamped = correction < 0;
+    var loss = posRisk + Math.max(0, correction);
+    return {
+      rpPlusArr:rpPlusArr, rpMinusArr:rpMinusArr, ruMinusArr:ruMinusArr,
+      Rp_plus:Rp_plus, Rp_minus:Rp_minus, Ru_minus:Ru_minus,
+      posRisk:posRisk, negTermRaw:negTermRaw, correction:correction, clamped:clamped, loss:loss
+    };
+  }
+
+  function buildCalcTable(){
+    var body = document.getElementById('calcBody');
+    body.innerHTML = '';
+    calcRows = [];
+    CALC_P.concat(CALC_U).forEach(function(n){
+      var isP = n.label.charAt(0) === 'P';
+      var tr = document.createElement('tr');
+      tr.className = 'calc-row set-' + (isP ? 'P' : 'U');
+
+      var tdLabel = document.createElement('td'); tdLabel.textContent = n.label;
+      var tdSet = document.createElement('td');
+      var pill = document.createElement('span');
+      pill.className = 'set-pill ' + (isP ? 'P' : 'U');
+      pill.textContent = isP ? 'P' : 'U';
+      tdSet.appendChild(pill);
+      var tdG = document.createElement('td');
+      var tdPos = document.createElement('td');
+      var tdNeg = document.createElement('td');
+
+      tr.appendChild(tdLabel); tr.appendChild(tdSet); tr.appendChild(tdG); tr.appendChild(tdPos); tr.appendChild(tdNeg);
+      body.appendChild(tr);
+      calcRows.push({ node:n, isP:isP, tdG:tdG, tdPos:tdPos, tdNeg:tdNeg, tr:tr });
+    });
+  }
+
+  function calcRenderTable(r){
+    var pIdx = 0, uIdx = 0;
+    calcRows.forEach(function(row){
+      row.tdG.textContent = row.node.g.toFixed(2);
+      if (row.isP){
+        row.tdPos.textContent = r.rpPlusArr[pIdx].toFixed(3);
+        row.tdNeg.textContent = r.rpMinusArr[pIdx].toFixed(3);
+        pIdx++;
+      } else {
+        row.tdPos.textContent = '—';
+        row.tdNeg.textContent = r.ruMinusArr[uIdx].toFixed(3);
+        uIdx++;
+      }
+    });
+  }
+
+  function calcApplyHighlight(step){
+    calcRows.forEach(function(row){
+      row.tr.classList.remove('row-hl','row-dim');
+      row.tdPos.classList.remove('col-hl','col-dim');
+      row.tdNeg.classList.remove('col-hl','col-dim');
+    });
+    calcRows.forEach(function(row){
+      if (step === 0){
+        row.tdPos.classList.add('col-dim'); row.tdNeg.classList.add('col-dim');
+      } else if (step === 1){
+        if (row.isP){ row.tr.classList.add('row-hl'); row.tdPos.classList.add('col-hl'); row.tdNeg.classList.add('col-dim'); }
+        else { row.tr.classList.add('row-dim'); row.tdPos.classList.add('col-dim'); row.tdNeg.classList.add('col-dim'); }
+      } else if (step === 2){
+        if (row.isP){ row.tr.classList.add('row-hl'); row.tdNeg.classList.add('col-hl'); row.tdPos.classList.add('col-dim'); }
+        else { row.tr.classList.add('row-dim'); row.tdPos.classList.add('col-dim'); row.tdNeg.classList.add('col-dim'); }
+      } else if (step === 3){
+        if (!row.isP){ row.tr.classList.add('row-hl'); row.tdNeg.classList.add('col-hl'); row.tdPos.classList.add('col-dim'); }
+        else { row.tr.classList.add('row-dim'); row.tdPos.classList.add('col-dim'); row.tdNeg.classList.add('col-dim'); }
+      } else {
+        row.tdPos.classList.add('col-dim'); row.tdNeg.classList.add('col-dim');
+      }
+    });
+  }
+
+  function calcRenderScoreboard(r, step){
+    document.querySelectorAll('#calcScoreboard .score-row').forEach(function(row){
+      var reveal = parseInt(row.getAttribute('data-reveal'), 10);
+      var revealed = step >= reveal;
+      row.classList.toggle('revealed', revealed);
+      row.classList.toggle('current', revealed && reveal === step);
+    });
+    document.getElementById('scorePpos').textContent = step >= 1 ? r.posRisk.toFixed(3) : '—';
+    document.getElementById('scorePneg').textContent = step >= 2 ? r.negTermRaw.toFixed(3) : '—';
+    document.getElementById('scoreUneg').textContent = step >= 3 ? r.Ru_minus.toFixed(3) : '—';
+    document.getElementById('scoreCorr').textContent = step >= 4 ? (r.clamped ? r.correction.toFixed(3) + ' → 0' : r.correction.toFixed(3)) : '—';
+    document.getElementById('scoreLoss').textContent = step >= 4 ? r.loss.toFixed(3) : '—';
+  }
+
+  function calcRenderAll(){
+    var r = calcCompute();
+    calcRenderTable(r);
+    calcApplyHighlight(calcState.step);
+    calcRenderScoreboard(r, calcState.step);
+
+    var s = CALC_STEPS[calcState.step];
+    document.getElementById('calcStepLabel').textContent = s.badge;
+    document.getElementById('calcStepTitle').innerHTML = s.title;
+    document.getElementById('calcStepText').innerHTML = s.text(r);
+    document.getElementById('calcEqLine').innerHTML = s.eq(r);
+
+    document.getElementById('calcPrevBtn').disabled = calcState.step === 0;
+    document.getElementById('calcNextBtn').textContent = calcState.step === CALC_STEPS.length - 1 ? 'Restart' : 'Next →';
+
+    var chip = document.getElementById('calcClampChip');
+    if (calcState.step === CALC_STEPS.length - 1){
+      chip.style.display = 'block';
+      chip.textContent = r.clamped ? 'clamped to 0 — gradient reversed' : 'unclamped — behaves like uPU';
+      chip.classList.toggle('clamped', r.clamped);
+      chip.classList.toggle('flow', !r.clamped);
+    } else {
+      chip.style.display = 'none';
+    }
+  }
+
+  document.getElementById('calcNextBtn').addEventListener('click', function(){
+    calcState.step = calcState.step === CALC_STEPS.length - 1 ? 0 : calcState.step + 1;
+    calcRenderAll();
+  });
+  document.getElementById('calcPrevBtn').addEventListener('click', function(){
+    if (calcState.step > 0){ calcState.step--; calcRenderAll(); }
+  });
+  document.getElementById('calcNudgeBtn').addEventListener('click', function(){
+    calcNudgeData();
+    calcRenderAll();
+  });
+  document.getElementById('calcResetBtn').addEventListener('click', function(){
+    calcResetData();
+    calcState.step = 0;
+    calcRenderAll();
+  });
+
+  calcResetData();
+  buildCalcTable();
+  calcRenderAll();
+
+})();
+</script>
+</body>
+</html>
