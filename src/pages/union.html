@@ -416,9 +416,40 @@
     .rsvp-row { flex-direction: column; gap: 20px; }
     section { padding: 72px 0; }
   }
+
+  /* ---------- Cursor glow ---------- */
+  /* A soft warm light that trails the pointer. Sits behind all real content
+     (z-index 0) and never intercepts clicks. Content above gets z-index 1. */
+  .cursor-glow {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      520px circle at var(--mx, 50%) var(--my, 40%),
+      rgba(138, 114, 86, 0.20),
+      rgba(138, 114, 86, 0.07) 32%,
+      transparent 65%
+    );
+  }
+
+  header, section, footer {
+    position: relative;
+    z-index: 1;
+  }
+
+  @media (hover: none) {
+    .cursor-glow { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cursor-glow { display: none; }
+  }
 </style>
 </head>
 <body>
+
+<div class="cursor-glow" aria-hidden="true"></div>
 
 <header class="hero">
   <span class="eyebrow">We're getting married</span>
@@ -615,6 +646,38 @@
         });
       }
     });
+  })();
+</script>
+
+<script>
+  (function () {
+    var glow = document.querySelector(".cursor-glow");
+    if (!glow) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.matchMedia("(hover: none)").matches) return;
+
+    var targetX = window.innerWidth / 2;
+    var targetY = window.innerHeight * 0.4;
+    var currentX = targetX;
+    var currentY = targetY;
+
+    window.addEventListener(
+      "mousemove",
+      function (e) {
+        targetX = e.clientX;
+        targetY = e.clientY;
+      },
+      { passive: true }
+    );
+
+    function tick() {
+      currentX += (targetX - currentX) * 0.12;
+      currentY += (targetY - currentY) * 0.12;
+      glow.style.setProperty("--mx", currentX + "px");
+      glow.style.setProperty("--my", currentY + "px");
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
   })();
 </script>
 
