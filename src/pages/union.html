@@ -136,10 +136,58 @@
     border-color: var(--accent);
   }
 
-  /* ---------- Sections ---------- */
+  nav.pillnav a.active {
+    color: var(--ivory);
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+
+  /* ---------- Sections (click-to-reveal panels) ---------- */
+  /* Hidden by default so the page can't be scrolled into — a panel only
+     appears once its nav button is clicked, via .panel.open below. */
+  .panel {
+    display: none;
+  }
+
+  .panel.open {
+    display: block;
+    animation: panel-in 0.35s ease;
+  }
+
+  @keyframes panel-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   section {
     padding: 96px 0;
     border-top: 1px solid var(--line);
+    position: relative;
+  }
+
+  .panel-close {
+    position: absolute;
+    top: 32px;
+    right: 28px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .panel-close:hover {
+    color: var(--ivory);
+    background: var(--accent);
+    border-color: var(--accent);
   }
 
   .section-head {
@@ -391,7 +439,8 @@
   </nav>
 </header>
 
-<section id="details">
+<section id="details" class="panel">
+  <button type="button" class="panel-close" aria-label="Close">&times;</button>
   <div class="wrap">
     <div class="section-head">
       <span class="eyebrow">Join us</span>
@@ -421,7 +470,8 @@
   </div>
 </section>
 
-<section id="schedule">
+<section id="schedule" class="panel">
+  <button type="button" class="panel-close" aria-label="Close">&times;</button>
   <div class="wrap">
     <div class="section-head">
       <span class="eyebrow">The Day</span>
@@ -446,7 +496,8 @@
   </div>
 </section>
 
-<section id="registry">
+<section id="registry" class="panel">
+  <button type="button" class="panel-close" aria-label="Close">&times;</button>
   <div class="wrap">
     <div class="section-head">
       <span class="eyebrow">With Love</span>
@@ -476,7 +527,8 @@
   </div>
 </section>
 
-<section id="rsvp">
+<section id="rsvp" class="panel">
+  <button type="button" class="panel-close" aria-label="Close">&times;</button>
   <div class="wrap">
     <div class="section-head">
       <span class="eyebrow">Kindly Respond</span>
@@ -520,6 +572,51 @@
   <p>Abdurahman &amp; Ekram</p>
   <p>Questions? Reach us at <a href="tel:+15157350684">(515) 735-0684</a> or <a href="tel:+12024150121">(202) 415-0121</a></p>
 </footer>
+
+<script>
+  (function () {
+    var navLinks = Array.prototype.slice.call(document.querySelectorAll(".pillnav a"));
+    var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+
+    function closeAll() {
+      panels.forEach(function (p) { p.classList.remove("open"); });
+      navLinks.forEach(function (l) { l.classList.remove("active"); });
+    }
+
+    function openPanel(id, link) {
+      var target = document.getElementById(id);
+      if (!target) return;
+      closeAll();
+      target.classList.add("open");
+      if (link) link.classList.add("active");
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    navLinks.forEach(function (link) {
+      link.addEventListener("click", function (e) {
+        e.preventDefault();
+        var id = link.getAttribute("href").slice(1);
+        var target = document.getElementById(id);
+        if (target && target.classList.contains("open")) {
+          closeAll();
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } else {
+          openPanel(id, link);
+        }
+      });
+    });
+
+    panels.forEach(function (panel) {
+      var closeBtn = panel.querySelector(".panel-close");
+      if (closeBtn) {
+        closeBtn.addEventListener("click", function () {
+          closeAll();
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+      }
+    });
+  })();
+</script>
 
 </body>
 </html>
