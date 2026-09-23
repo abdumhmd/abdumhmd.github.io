@@ -55,7 +55,7 @@ export const getMediaUrl = (media: MediaDetails, size: "small" | "medium" | "lar
 };
 
 export const getMp4Videos = (media: MediaAnimatedGif | MediaVideo) => {
-	const { variants } = media.video_info;
+	const variants = media.video_info?.variants ?? [];
 	const sortedMp4Videos = variants
 		.filter((vid) => vid.content_type === "video/mp4")
 		.sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
@@ -65,8 +65,15 @@ export const getMp4Videos = (media: MediaAnimatedGif | MediaVideo) => {
 
 export const getMp4Video = (media: MediaAnimatedGif | MediaVideo) => {
 	const mp4Videos = getMp4Videos(media);
-	// Skip the highest quality video and use the next quality
-	return mp4Videos.length > 1 ? mp4Videos[1] : mp4Videos[0];
+	// Skip the highest quality video and use the next quality when available
+	if (mp4Videos.length > 1) return mp4Videos[1];
+	if (mp4Videos.length === 1) return mp4Videos[0];
+
+	// Fallback: if no MP4 variants, try an HLS variant instead of crashing
+	const hlsVariant = (media.video_info?.variants ?? []).find(
+		(vid) => vid.content_type === "application/x-mpegURL",
+	);
+	return hlsVariant;
 };
 
 export const formatNumber = (n: number): string => {
@@ -141,8 +148,10 @@ function getEntities(tweet: TweetBase): Entity[] {
 function addEntities(
 	result: EntityWithType[],
 	type: EntityWithType["type"],
-	entities: TweetEntity[],
+	entities: TweetEntity[] | undefined,
 ) {
+	if (!entities) return;
+
 	for (const entity of entities) {
 		for (const [i, item] of result.entries()) {
 			if (item.indices[0] > entity.indices[0] || item.indices[1] < entity.indices[1]) {
@@ -175,10 +184,14 @@ function addEntities(
  * Array.from is unicode aware, unlike string.slice()
  */
 function fixRange(tweet: TweetBase, entities: EntityWithType[]) {
-	if (tweet.entities.media && tweet.entities.media[0].indices[0] < tweet.display_text_range[1]) {
-		tweet.display_text_range[1] = tweet.entities.media[0].indices[0];
+	const firstMedia = tweet.entities.media?.[0];
+	if (
+		firstMedia?.indices?.[0] !== undefined &&
+		firstMedia.indices[0] < tweet.display_text_range[1]
+	) {
+		tweet.display_text_range[1] = firstMedia.indices[0];
 	}
-	const lastEntity = entities.at(-1);
+	const lastEntity = entities[entities.length - 1];
 	if (lastEntity && lastEntity.indices[1] > tweet.display_text_range[1]) {
 		lastEntity.indices[1] = tweet.display_text_range[1];
 	}
@@ -192,9 +205,9 @@ export type EnrichedTweet = Omit<Tweet, "entities" | "quoted_tweet"> & {
 	};
 	like_url: string;
 	reply_url: string;
-	in_reply_to_url?: string;
+	in_reply_to_url?: string | undefined;
 	entities: Entity[];
-	quoted_tweet?: EnrichedQuotedTweet;
+	quoted_tweet?: EnrichedQuotedTweet | undefined;
 };
 
 export type EnrichedQuotedTweet = Omit<QuotedTweet, "entities"> & {

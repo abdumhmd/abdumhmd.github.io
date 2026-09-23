@@ -1,9 +1,10 @@
 ---
 import * as interfaces from "@/lib/interfaces";
 import Caption from "@/components/notion-blocks/Caption.astro";
-import { SHORTCODES, TRANSFORMER_FUNCTIONS_ARR } from "@/constants";
-import Icon from "@/components/Icon.astro";
-import { Code } from "astro:components";
+import { ENABLE_LIGHTBOX, SHORTCODES, TRANSFORMER_FUNCTIONS_ARR } from "@/constants";
+import { highlightCodeToHtml } from "@/utils/shiki-highlighter";
+import Icon from "@/components/ui/Icon.astro";
+import { joinPlainText, resolveLeadingMarker } from "@/utils/richtext-utils";
 
 export interface Props {
 	block: interfaces.Block;
@@ -107,7 +108,7 @@ function processCode(code: string, language: string): string {
 
 		if (match) {
 			const command = match[2];
-			const remainingContent = match[3].trim();
+			const remainingContent = match[3]!.trim();
 
 			if (command === "--" || command === "warning" || command === "error") {
 				return "";
@@ -127,13 +128,14 @@ function processCode(code: string, language: string): string {
 }
 
 // Usage
-let code = block.Code.RichTexts.map((richText: interfaces.RichText) => richText.Text.Content).join(
+const codeBlock = block.Code!;
+let code = codeBlock.RichTexts.map((richText: interfaces.RichText) => richText.Text!.Content).join(
 	"",
 );
 const language =
-	block.Code.Language.toLowerCase() === "plain text"
+	codeBlock.Language.toLowerCase() === "plain text"
 		? "plaintext"
-		: block.Code.Language.toLowerCase();
+		: codeBlock.Language.toLowerCase();
 
 const shiki_transform_code = SHORTCODES["shiki-transform"]
 	? code.startsWith(SHORTCODES["shiki-transform"])
@@ -142,54 +144,131 @@ code = shiki_transform_code ? code.replace(SHORTCODES["shiki-transform"], "").tr
 
 const modifiedCode = shiki_transform_code ? processCode(code, language) : code;
 
-const code_render = SHORTCODES["html-render"] ? code.startsWith(SHORTCODES["html-render"]) : false;
-const code_inject = SHORTCODES["html-inject"] ? code.startsWith(SHORTCODES["html-inject"]) : false;
-const plainTextCaption = block.Code?.Caption.map((richText) => richText.PlainText).join(" ");
+// Notion's "Format code" feature can split the default shortcodes into two lines.
+// The following logic handles both the standard single-line shortcode and the
+// two-line version to ensure users can use the formatting feature without issues.
+
+// --- Logic for html-inject ---
+let htmlToInject: string | null = null;
+const injectShortcode = SHORTCODES["html-inject"];
+const defaultInjectShortcode = "<!DOCTYPE html> <!-- inject -->";
+
+if (injectShortcode) {
+	// Check for the standard shortcode first.
+	if (code.startsWith(injectShortcode)) {
+		htmlToInject = code.substring(injectShortcode.length);
+	}
+	// As a fallback, if the configured shortcode is the default one,
+	// check for the newline-variant that Notion's formatter creates.
+	else if (injectShortcode === defaultInjectShortcode) {
+		const injectShortcodeNewline = "<!DOCTYPE html>\n<!-- inject -->";
+		if (code.startsWith(injectShortcodeNewline)) {
+			htmlToInject = code.substring(injectShortcodeNewline.length);
+		}
+	}
+}
+
+// --- Logic for html-render ---
+let iframeSrcDoc: string | null = null;
+const renderShortcode = SHORTCODES["html-render"];
+const defaultRenderShortcode = "<!DOCTYPE html> <!-- iframe -->";
+
+if (codeBlock.RenderMode === "iframe") {
+	iframeSrcDoc = code;
+} else if (renderShortcode) {
+	// Check for the standard shortcode first.
+	if (code.startsWith(renderShortcode)) {
+		iframeSrcDoc = code.substring(renderShortcode.length);
+	}
+	// As a fallback, if the configured shortcode is the default one,
+	// check for the newline-variant that Notion's formatter creates.
+	else if (renderShortcode === defaultRenderShortcode) {
+		const renderShortcodeNewline = "<!DOCTYPE html>\n<!-- iframe -->";
+		if (code.startsWith(renderShortcodeNewline)) {
+			iframeSrcDoc = code.substring(renderShortcodeNewline.length);
+		}
+	}
+}
+
+const code_render = iframeSrcDoc !== null;
+const code_inject = htmlToInject !== null;
+const shouldHighlight = !code_render && !code_inject && language !== "mermaid";
+const highlightedCodeHtml = shouldHighlight
+	? await highlightCodeToHtml({
+			code,
+			lang: language,
+			defaultColor: "light",
+			transformers: TRANSFORMER_FUNCTIONS_ARR,
+		})
+		: null;
+const isWide = setId && resolveLeadingMarker(codeBlock, codeBlock.Caption!, SHORTCODES["wide-breakout"], "__wide");
+const plainTextCaption = joinPlainText(codeBlock.Caption!);
+const iframeHeight = codeBlock.IframeSizing?.Height;
+const iframeAspectRatio = iframeHeight ? undefined : codeBlock.IframeSizing?.AspectRatio;
+const iframeStyle = iframeHeight
+	? `--html-frame-height: ${iframeHeight}px`
+	: iframeAspectRatio
+		? `--html-frame-aspect-ratio: ${iframeAspectRatio}`
+		: undefined;
+const iframeLightboxId = `html-frame-lightbox-${block.Id}`;
 ---
 
 {
 	code_render ? (
-		<div class="renderedcode mb-1 w-full max-w-full" id={setId ? block.Id : undefined}>
-			<iframe
-				srcdoc={code.replace(SHORTCODES["html-render"], "")}
-				class="h-[340px] w-full max-w-full rounded-lg border-none print:max-h-full"
-				loading="lazy"
-				title={plainTextCaption}
-			/>
+			<div
+				class:list={["code-rendered", { "code-rendered-aspect": iframeAspectRatio, "webtrotion-wide-breakout": isWide }]}
+				id={setId ? block.Id : undefined}
+				style={iframeStyle}
+				data-html-frame
+			>
+				{ENABLE_LIGHTBOX && (
+					<a
+						href={`#${iframeLightboxId}`}
+						class="embedglightbox html-frame-lightbox-trigger no-rss"
+						data-type="inline"
+						data-glightbox="type: inline; width: 100vw; height: 100vh;"
+						aria-label="Open HTML artifact in lightbox"
+					>
+						<Icon name={"expand"} class="h-6 w-6" aria-hidden="true" />
+					</a>
+				)}
+				<iframe
+					srcdoc={iframeSrcDoc}
+					class="code-iframe"
+					loading="lazy"
+					title={plainTextCaption}
+				/>
+				{ENABLE_LIGHTBOX && (
+					<div class="hidden">
+						<div id={iframeLightboxId} class="html-frame-lightbox-content">
+							<iframe
+								srcdoc={iframeSrcDoc}
+								class="code-iframe"
+								title={plainTextCaption}
+							/>
+						</div>
+					</div>
+				)}
 		</div>
 	) : code_inject ? (
-		<div class="injectedcode mb-1 max-w-full" id={setId ? block.Id : undefined}>
-			<Fragment set:html={code.replace(SHORTCODES["html-inject"], "")} />
-			<Caption richTexts={block.Code.Caption} block={block} />
+		<div class:list={["code-injected", { "webtrotion-wide-breakout": isWide }]} id={setId ? block.Id : undefined}>
+			<Fragment set:html={htmlToInject} />
+			<Caption richTexts={codeBlock.Caption!} block={block} />
 		</div>
 	) : (
 		<div
-			class="code group relative z-0 mb-1 w-full max-w-full text-sm"
+			class="code group"
 			id={setId ? block.Id : undefined}
 		>
 			<div
-				class={`${language === "mermaid" ? "overflow-x-scroll" : "max-h-[340px] overflow-scroll print:max-h-full"} min-w-0`}
+				class={language === "mermaid" ? "code-mermaid" : "code-scroll"}
 				{...(language !== "mermaid" && { "data-pagefind-ignore": "all" })}
 			>
 				<div class="flex max-w-full">
 					<button
-						class="copy absolute top-0 right-0 z-10 cursor-pointer border-none p-2 text-gray-500 sm:opacity-100 md:opacity-0 md:transition-opacity md:duration-200 md:group-hover:opacity-100 print:hidden"
+						class="copy"
 						data-code={modifiedCode}
 						aria-label="copy code"
-						onclick="
-                const code = this.getAttribute('data-code');
-                navigator.clipboard.writeText(code);
-                const svgBefore = this.querySelector('.copy-icon-before');
-                const svgAfter = this.querySelector('.copy-icon-done');
-                if (svgBefore && svgAfter) {
-                    svgBefore.classList.toggle('hidden');
-                    svgAfter.classList.toggle('hidden');
-                    setTimeout(() => {
-                        svgBefore.classList.toggle('hidden');
-                        svgAfter.classList.toggle('hidden');
-                    }, 1000);
-                }
-            "
 					>
 						<Icon
 							class="copy-icon-before h-6 w-6"
@@ -197,28 +276,152 @@ const plainTextCaption = block.Code?.Caption.map((richText) => richText.PlainTex
 							aria-label="copy code"
 						/>
 						<Icon
-							class="copy-icon-done hidden h-6 w-6"
+							class="copy-icon-done h-6 w-6"
 							name={"clipboard-copy-code-done"}
 							aria-label="copied code"
 						/>
 					</button>
 				</div>
 				{language === "mermaid" ? (
-					<pre class="mermaid max-w-full rounded-sm p-4 font-mono">{code}</pre>
+					<pre class="mermaid">{code}</pre>
 				) : (
-					<Code
-						code={code}
-						lang={language}
-						theme={"github-dark-dimmed"}
-						transformers={TRANSFORMER_FUNCTIONS_ARR}
-					/>
+					highlightedCodeHtml && <Fragment set:html={highlightedCodeHtml} />
 				)}
 			</div>
-			<Caption richTexts={block.Code.Caption} block={block} />
+			<Caption richTexts={codeBlock.Caption!} block={block} />
 		</div>
 	)
+	}
+
+{/* prettier-ignore */}
+{
+	language === "mermaid" && (
+		<script>
+			// Only load Mermaid after page load
+			window.addEventListener("load", () => {
+				if (document.querySelector(".mermaid")) {
+					import("mermaid").then((module) => {
+						const mermaid = module.default;
+						mermaid.initialize({ startOnLoad: false, theme: "base" });
+						mermaid.run();
+					});
+				}
+			});
+		</script>
+	)
 }
+
 <script>
-	import mermaid from "mermaid";
-	mermaid.initialize({ startOnLoad: true, theme: "base" });
+	// Auto-fit rendered HTML iframes ([data-html-frame]) to their content height.
+	// Lazy + off the critical path: work is deferred with requestIdleCallback and each
+	// frame is only measured once it nears the viewport (IntersectionObserver), so it
+	// never blocks initial load / page-speed metrics. srcdoc iframes are same-origin, so
+	// their content height is measurable. Blocks with an explicit Notion height/aspect
+	// ratio (inline custom property) opt out and keep the author-provided sizing.
+	const htmlFrameRemeasures: Array<() => void> = [];
+
+	function setupHtmlFrame(el: HTMLElement) {
+		if (el.dataset.htmlFrameAuto === "done") return;
+		el.dataset.htmlFrameAuto = "done";
+
+		// Respect explicit author sizing coming from Notion meta tags.
+		const inlineStyle = el.getAttribute("style") || "";
+		if (
+			el.classList.contains("code-rendered-aspect") ||
+			inlineStyle.includes("--html-frame-height") ||
+			inlineStyle.includes("--html-frame-aspect-ratio")
+		) {
+			return;
+		}
+
+		const iframe = el.querySelector("iframe.code-iframe") as HTMLIFrameElement | null;
+		if (!iframe) return;
+
+		const MIN = 96; // px
+		// Small breathing room so sub-pixel rounding, a trailing margin, or a
+		// horizontal scrollbar never clips the content or forces an inner scrollbar.
+		const BUFFER = 12; // px
+		const measure = () => {
+			try {
+				const doc = iframe.contentDocument;
+				if (!doc || !doc.body) return;
+				// Use the body's own content height. documentElement.scrollHeight is
+				// inflated to the iframe's current viewport height, which would pin the
+				// frame to its fallback size and defeat auto-fitting small content.
+				const contentHeight = Math.max(doc.body.scrollHeight, doc.body.offsetHeight);
+				if (!contentHeight) return;
+				const max = Math.round(window.innerHeight * 0.95);
+				const clamped = Math.min(Math.max(contentHeight + BUFFER, MIN), max);
+				el.style.setProperty("--html-frame-height", `${clamped}px`);
+			} catch {
+				/* leave the CSS fallback in place if measurement is blocked */
+			}
+		};
+		htmlFrameRemeasures.push(measure);
+
+		const onReady = () => {
+			measure();
+			try {
+				const doc = iframe.contentDocument;
+				if (doc && doc.body && "ResizeObserver" in window) {
+					// Re-measure once async content (e.g. d3, charts) finishes drawing.
+					const ro = new ResizeObserver(() => measure());
+					ro.observe(doc.body);
+				}
+			} catch {
+				/* no-op */
+			}
+		};
+
+		if (iframe.contentDocument && iframe.contentDocument.readyState === "complete") {
+			onReady();
+		} else {
+			iframe.addEventListener("load", onReady);
+		}
+	}
+
+	function lazyInitHtmlFrames() {
+		const frames = document.querySelectorAll<HTMLElement>("[data-html-frame]");
+		if (!frames.length) return;
+
+		if (!("IntersectionObserver" in window)) {
+			frames.forEach(setupHtmlFrame);
+			return;
+		}
+
+		// Only set up a frame once it approaches the viewport, mirroring the iframe's
+		// own loading="lazy"; off-screen frames cost nothing until scrolled near.
+		const io = new IntersectionObserver(
+			(entries, obs) => {
+				for (const entry of entries) {
+					if (entry.isIntersecting) {
+						obs.unobserve(entry.target);
+						setupHtmlFrame(entry.target as HTMLElement);
+					}
+				}
+			},
+			{ rootMargin: "250px 0px" },
+		);
+		frames.forEach((frame) => io.observe(frame));
+	}
+
+	// Defer off the critical path so it never affects load/interaction metrics.
+	const scheduleHtmlFrames = () =>
+		"requestIdleCallback" in window
+			? (window as any).requestIdleCallback(lazyInitHtmlFrames, { timeout: 2000 })
+			: setTimeout(lazyInitHtmlFrames, 200);
+
+	if (document.readyState === "complete") {
+		scheduleHtmlFrames();
+	} else {
+		window.addEventListener("load", scheduleHtmlFrames, { once: true });
+	}
+
+	let htmlFrameResizeRaf = 0;
+	window.addEventListener("resize", () => {
+		if (htmlFrameResizeRaf) cancelAnimationFrame(htmlFrameResizeRaf);
+		htmlFrameResizeRaf = requestAnimationFrame(() =>
+			htmlFrameRemeasures.forEach((fn) => fn()),
+		);
+	});
 </script>

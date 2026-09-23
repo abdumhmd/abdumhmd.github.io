@@ -1,7 +1,8 @@
 ---
 import * as interfaces from "@/lib/interfaces.ts";
-import { buildHeadingId, getCurrentHeadings } from "@/lib/blog-helpers.ts";
-import { getNotionColorToTailwindColor } from "@/lib/style-helpers.ts";
+import { getCurrentHeadings } from "@/lib/blog-helpers.ts";
+import { getNotionColorToTailwindColor } from "@/utils/style-helpers";
+import type { TocItem } from "@/utils";
 
 export interface Props {
 	block: interfaces.Block;
@@ -9,31 +10,34 @@ export interface Props {
 }
 
 const { block, setId = true } = Astro.props;
-let current_headings = getCurrentHeadings();
+const currentHeadings = getCurrentHeadings() as TocItem[] | null;
+const tableOfContents = block.TableOfContents!;
 ---
 
 {
-	current_headings && (
+	currentHeadings && (
 		<div class="table-of-contents no-rss" id={setId ? block.Id : undefined}>
-			{current_headings.map((heading) => {
+			{currentHeadings.map((heading) => {
 				let indentClass = "";
 				if (heading.depth === 2) {
 					indentClass = "pl-6";
 				} else if (heading.depth === 3) {
 					indentClass = "pl-12";
+				} else if (heading.depth === 4) {
+					indentClass = "pl-[4.5rem]";
 				}
 
 				return (
 					<a
 						href={`#${heading.slug}`}
 						class:list={[
-							"table-of-contents block leading-7 hover:font-bold",
+							"table-of-contents block leading-7 transition-[text-shadow] duration-150 ease-out hover:[text-shadow:0.4px_0_0_currentColor,-0.4px_0_0_currentColor]",
 							indentClass,
 							{
-								[`${getNotionColorToTailwindColor(block.TableOfContents.Color)} rounded-sm px-1`]:
-									block.TableOfContents.Color &&
+								[`${getNotionColorToTailwindColor(tableOfContents.Color)} rounded-sm px-1`]:
+									tableOfContents.Color &&
 									!["default", "default_background", "default-background"].includes(
-										block.TableOfContents.Color,
+										tableOfContents.Color,
 									),
 							},
 						]}

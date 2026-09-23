@@ -1,0 +1,38 @@
+---
+import { undefined } from "astro:schema";
+
+interface Props {
+	enableBackground: boolean;
+	backgroundUrl?: string;
+	placeholderUrl?: string;
+	class?: string;
+}
+
+const {
+	enableBackground,
+	backgroundUrl = "",
+	placeholderUrl = "",
+	class: className = "",
+} = Astro.props;
+
+const hasPlaceholder = placeholderUrl && placeholderUrl !== backgroundUrl;
+const backgroundImageStyle = hasPlaceholder
+	? `background-image: url("${backgroundUrl}"), url("${placeholderUrl}")`
+	: backgroundUrl
+		? `background-image: url("${backgroundUrl}")`
+		: undefined;
+---
+
+{
+	enableBackground ? (
+		<div class={`cover-hero-container ${className}`.trim()}>
+			<div class="cover-hero-image" style={backgroundImageStyle} />
+			<div class="cover-hero-tint" />
+			<div class="cover-hero-content">
+				<slot />
+			</div>
+		</div>
+	) : (
+		<slot />
+	)
+}

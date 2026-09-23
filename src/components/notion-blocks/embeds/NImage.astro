@@ -1,8 +1,17 @@
 ---
-import { ENABLE_LIGHTBOX } from "@/constants.ts";
+import { Image, getImage, inferRemoteSize } from "astro:assets";
+import { ENABLE_LIGHTBOX, OPTIMIZE_IMAGES } from "@/constants.ts";
 import * as interfaces from "@/lib/interfaces.ts";
-import { filePath, getFirstImage } from "@/lib/blog-helpers";
+import {
+	getFirstImage,
+	getNotionImage,
+	getImageComponentFormat,
+	filePath,
+} from "@/lib/blog-helpers";
 import Caption from "@/components/notion-blocks/Caption.astro";
+import { isImageTypeForAstro } from "@/lib/notion/client";
+import { joinPlainText, resolveLeadingMarker } from "@/utils/richtext-utils";
+import { SHORTCODES } from "@/constants.ts";
 
 export interface Props {
 	block: interfaces.Block;
@@ -11,45 +20,150 @@ export interface Props {
 
 const { block, setId = true } = Astro.props;
 
-let image = "";
+let externalImageUrl = "";
+let downloadedImage = null;
+let lightboxImageUrl = null;
+
 if (block.NImage?.External) {
-	image = block.NImage.External.Url;
+	externalImageUrl = block.NImage.External.Url;
+} else if (block.NImage?.File && !isImageTypeForAstro(block.NImage.File.Url)) {
+	externalImageUrl = filePath(new URL(block.NImage.File.Url));
 } else if (block.NImage?.File) {
-	image = filePath(new URL(block.NImage.File.OptimizedUrl));
+	downloadedImage = await getNotionImage(new URL(block.NImage.File.Url));
 }
 
-const plainTextCaption = block.NImage?.Caption.map((richText) => richText.PlainText).join(" ");
+// Generate optimized image for lightbox (only if OPTIMIZE_IMAGES is enabled)
+if (downloadedImage && OPTIMIZE_IMAGES) {
+	const optimizedImage = await getImage({
+		src: downloadedImage,
+		format: getImageComponentFormat(downloadedImage),
+		quality: 85,
+		width: downloadedImage.width, // Use original width to match the <Image> component
+	});
+	lightboxImageUrl = optimizedImage.src;
+} else if (downloadedImage) {
+	lightboxImageUrl = downloadedImage.src; // Fallback to original if not optimizing
+}
+
+// Infer size for external images to prevent CLS
+let externalImageDimensions = null;
+const isBundledExternalAsset =
+	externalImageUrl.includes("/external-posts/") || externalImageUrl.includes("/custom-components/");
+if (
+	externalImageUrl &&
+	/^https?:\/\//.test(externalImageUrl) &&
+	!isBundledExternalAsset &&
+	!block.NImage?.File
+) {
+	try {
+		externalImageDimensions = await inferRemoteSize(externalImageUrl);
+	} catch (err) {
+		console.warn(`Could not infer size for external image: ${externalImageUrl}`);
+	}
+}
+
+// Wide only in canonical (setId) renders; previews still strip the marker via the resolver.
+const isWide =
+	setId &&
+	resolveLeadingMarker(block.NImage, block.NImage?.Caption, SHORTCODES["wide-breakout"], "__wide");
+
+const plainTextCaption = joinPlainText(block.NImage?.Caption || []);
+const altText =
+	plainTextCaption ||
+	(downloadedImage ? "Image uploaded to Notion" : externalImageUrl ? "External image" : "Image");
+
+const isFirstImage = getFirstImage() && setId;
+
+// Generate a mobile-friendly width (~1200px) plus the original; avoid upscaling smaller files.
+const mobileWidth = downloadedImage && downloadedImage.width > 1200 ? 1200 : downloadedImage?.width;
+const imageWidths =
+	downloadedImage && downloadedImage.width > 1200
+		? [mobileWidth, downloadedImage.width].filter(
+				(width): width is number => typeof width === "number",
+			)
+		: downloadedImage
+			? [downloadedImage.width]
+			: undefined;
+const imageSizes =
+	downloadedImage && downloadedImage.width > 1200
+		? `(max-width: 640px) 100vw, ${downloadedImage.width}px`
+		: downloadedImage
+			? `${downloadedImage.width}px`
+			: undefined;
 ---
 
 {
-	image && (
-		<figure class="mx-auto mt-1 max-w-full" id={setId ? block.Id : undefined}>
-			<div class="mx-auto min-w-0">
+	(downloadedImage || externalImageUrl) && (
+		<figure
+			class:list={["notion-image-figure", { "webtrotion-wide-breakout": isWide }]}
+			id={setId ? block.Id : undefined}
+		>
+			<div class="notion-image-container">
 				{ENABLE_LIGHTBOX ? (
 					<a
 						data-type="image"
-						href={image}
+						href={downloadedImage ? lightboxImageUrl : externalImageUrl}
 						class="mediaglightbox no-rss"
 						data-description={plainTextCaption}
 						aria-label={`Open image with alt ${plainTextCaption} in lightbox`}
 					>
-						<img
-							class="imagemedia block max-w-full rounded-md"
-							loading={getFirstImage() && setId ? "eager" : "lazy"}
-							src={image}
-							alt={plainTextCaption}
-						/>
+						{downloadedImage ? (
+							<Image
+								src={downloadedImage}
+								alt={altText}
+								priority={isFirstImage}
+								{...(!isFirstImage ? { loading: "lazy", decoding: "async" } : {})}
+								{...(OPTIMIZE_IMAGES ? { quality: 85 } : {})}
+								{...(imageWidths ? { widths: imageWidths } : {})}
+								{...(imageSizes ? { sizes: imageSizes } : {})}
+								class="imagemedia notion-image"
+								format={
+									OPTIMIZE_IMAGES
+										? getImageComponentFormat(downloadedImage)
+										: downloadedImage.format
+								}
+							/>
+						) : (
+							<img
+								class="imagemedia notion-image"
+								loading={isFirstImage ? "eager" : "lazy"}
+								decoding={isFirstImage ? "sync" : "async"}
+								fetchpriority={isFirstImage ? "high" : undefined}
+								src={externalImageUrl}
+								alt={altText}
+								width={externalImageDimensions ? externalImageDimensions.width : undefined}
+								height={externalImageDimensions ? externalImageDimensions.height : undefined}
+							/>
+						)}
 					</a>
+				) : downloadedImage ? (
+					<Image
+						src={downloadedImage}
+						alt={altText}
+						priority={isFirstImage}
+						{...(!isFirstImage ? { loading: "lazy", decoding: "async" } : {})}
+						{...(OPTIMIZE_IMAGES ? { quality: 85 } : {})}
+						{...(imageWidths ? { widths: imageWidths } : {})}
+						{...(imageSizes ? { sizes: imageSizes } : {})}
+						class="imagemedia notion-image"
+						format={
+							OPTIMIZE_IMAGES ? getImageComponentFormat(downloadedImage) : downloadedImage.format
+						}
+					/>
 				) : (
 					<img
-						class="imagemedia block max-w-full rounded-md"
-						src={image}
-						loading={getFirstImage() ? "eager" : "lazy"}
-						alt={plainTextCaption}
+						class="imagemedia notion-image"
+						src={externalImageUrl}
+						loading={isFirstImage ? "eager" : "lazy"}
+						decoding={isFirstImage ? "sync" : "async"}
+						fetchpriority={isFirstImage ? "high" : undefined}
+						alt={altText}
+						width={externalImageDimensions ? externalImageDimensions.width : undefined}
+						height={externalImageDimensions ? externalImageDimensions.height : undefined}
 					/>
 				)}
 			</div>
-			<Caption richTexts={block.NImage.Caption} block={block} as="figcaption" />
+			<Caption richTexts={block.NImage!.Caption!} block={block} as="figcaption" />
 		</figure>
 	)
 }

@@ -1,10 +1,16 @@
 ---
+import { Image } from "astro:assets";
 import { type Post } from "@/lib/interfaces.ts";
 import { getPostByPageId } from "@/lib/notion/client";
-import { getPostLink } from "@/lib/blog-helpers.ts";
-import { MENU_PAGES_COLLECTION } from "@/constants";
-import { getIconTailwindFilterStyle } from "@/lib/style-helpers";
-import Icon from "@/components/Icon.astro";
+import {
+	resolvePostHref,
+	getNotionImage,
+	getImageComponentFormat,
+	isExternalPost,
+} from "@/lib/blog-helpers.ts";
+import { getIconTailwindFilterStyle } from "@/utils/style-helpers";
+import Icon from "@/components/ui/Icon.astro";
+import { isNotionHostedIconUrl } from "@/lib/notion/client";
 
 export interface Props {
 	pageId: string;
@@ -12,32 +18,87 @@ export interface Props {
 
 const { pageId } = Astro.props;
 
-let post: Post = null;
+let post: Post | null = null;
 if (pageId) {
 	post = await getPostByPageId(pageId);
 }
 
-const hreflink = post ? getPostLink(post.Slug, post.Collection === MENU_PAGES_COLLECTION) : null;
+const hreflink = post ? resolvePostHref(post) : null;
+const external = isExternalPost(post);
+
+const icon = post?.Icon;
+const iconUrl = icon && "Url" in icon ? icon.Url : null;
+const iconEmoji = icon && "Emoji" in icon ? icon.Emoji : null;
+let downloadedIcon = null;
+let externalIconPath = null;
+
+if (!external && icon && iconUrl) {
+	const isNotionIcon = isNotionHostedIconUrl(iconUrl);
+	const canBeCachedLocally =
+		icon.Type === "file" || icon.Type === "custom_emoji" || icon.Type === "icon" || isNotionIcon;
+
+	if (canBeCachedLocally) {
+		downloadedIcon = await getNotionImage(new URL(iconUrl));
+	}
+
+	if (!downloadedIcon) {
+		// Prefer local, but fall back to the remote URL if the asset wasn't found in `src/assets/notion`.
+		externalIconPath = iconUrl;
+	}
+}
 ---
 
 {
 	post && (
-		<a href={hreflink} class="site-page-link text-link inline items-center justify-center">
+		<a
+			href={hreflink}
+			class="site-page-link text-link inline items-center justify-center"
+			target={external ? "_blank" : undefined}
+			rel={external ? "nofollow noopener" : undefined}
+		>
 			<>
-				<span class="mr-1 inline">
-					{post.Icon && post.Icon.Type === "emoji" ? (
-						post.Icon.Emoji
-					) : post.Icon && post.Icon.Type === "external" ? (
-						<img
-							src={post.Icon.Url}
-							class={`no-rss inline h-4 w-4 shrink-0 align-sub ${getIconTailwindFilterStyle(post.Icon.Url)}`}
-							alt=""
+				{external ? (
+					<span class="mr-1 inline">
+						<Icon
+							name={"external-link-mention"}
+							class="text-accent/80 inline h-4 w-4 align-sub"
+							aria-hidden="true"
 						/>
-					) : (
-						<Icon name={"document"} class="inline h-4 w-4 align-sub" aria-hidden="true" />
-					)}
+					</span>
+				) : (
+					<span class="mr-1 inline">
+						{icon?.Type === "emoji" ? (
+							iconEmoji
+						) : icon &&
+						  (icon.Type === "external" ||
+								icon.Type === "file" ||
+								icon.Type === "custom_emoji" ||
+								icon.Type === "icon") ? (
+							downloadedIcon ? (
+								<Image
+									src={downloadedIcon}
+									class={`no-rss inline h-4 w-4 shrink-0 align-sub ${getIconTailwindFilterStyle(iconUrl || "")}`}
+									widths={[100]}
+									sizes="40px"
+									alt=""
+									format={getImageComponentFormat(downloadedIcon)}
+								/>
+							) : (
+								<img
+									src={externalIconPath}
+									class={`no-rss inline h-4 w-4 shrink-0 align-sub ${getIconTailwindFilterStyle(iconUrl || "")}`}
+									alt=""
+								/>
+							)
+						) : (
+							<Icon name={"document"} class="inline h-4 w-4 align-sub" aria-hidden="true" />
+						)}
+					</span>
+				)}
+				<span class="inline w-full">
+					{post.Title}
+					{external && <span class="sr-only">External link</span>}
 				</span>
-				<span class="inline w-full">{post.Title}</span>
 			</>
 		</a>
 	)

@@ -21,11 +21,29 @@ export interface Post {
 	Tags: SelectProperty[];
 	Excerpt: string;
 	FeaturedImage: FileObject | null;
-	Rank: number;
+	Rank: number | null;
 	LastUpdatedDate: string;
 	LastUpdatedTimeStamp: Date;
 	Pinned: boolean;
 	BlueSkyPostLink: string | "";
+	IsExternal: boolean;
+	ExternalUrl: string | null;
+	ExternalContent?: ExternalContentDescriptor | null;
+	/**
+	 * Authors from Notion multi-select property.
+	 * - undefined: Authors property doesn't exist in Notion DB (behave as current, no bylines)
+	 * - []: Authors property exists but is empty on this post (use default author from config)
+	 * - AuthorProperty[]: One or more authors assigned to this post
+	 */
+	Authors?: AuthorProperty[] | undefined;
+}
+
+export type ExternalContentType = "html" | "markdown" | "mdx";
+
+export interface ExternalContentDescriptor {
+	type: ExternalContentType;
+	sourceId: string;
+	folderName: string;
 }
 
 export interface Block {
@@ -38,6 +56,7 @@ export interface Block {
 	Heading1?: Heading1;
 	Heading2?: Heading2;
 	Heading3?: Heading3;
+	Heading4?: Heading4;
 	BulletedListItem?: BulletedListItem;
 	NumberedListItem?: NumberedListItem;
 	ToDo?: ToDo;
@@ -45,10 +64,16 @@ export interface Block {
 	NAudio?: NAudio;
 	File?: File;
 	Code?: Code;
+	MdxSnippet?: {
+		PageId: string;
+		BlockId: string;
+		Slug: string;
+	};
 	Quote?: Quote;
 	Equation?: Equation;
 	Callout?: Callout;
 	SyncedBlock?: SyncedBlock;
+	Tab?: Tab;
 	Toggle?: Toggle;
 	Embed?: Embed;
 	Video?: Video;
@@ -58,9 +83,15 @@ export interface Block {
 	ColumnList?: ColumnList;
 	TableOfContents?: TableOfContents;
 	LinkToPage?: LinkToPage;
+	ListItems?: Block[];
+
+	// Footnotes (populated by extractFootnotes during build)
+	Footnotes?: Footnote[] | undefined;
+	// Citations (populated by extractCitations during build)
+	Citations?: Citation[] | undefined;
 }
 
-export interface ReferencesInPage {
+export interface InterlinkedContentInPage {
 	block: Block;
 	other_pages: RichText[];
 	external_hrefs: RichText[];
@@ -91,6 +122,13 @@ export interface Heading2 {
 }
 
 export interface Heading3 {
+	RichTexts: RichText[];
+	Color: string;
+	IsToggleable: boolean;
+	Children?: Block[];
+}
+
+export interface Heading4 {
 	RichTexts: RichText[];
 	Color: string;
 	IsToggleable: boolean;
@@ -152,9 +190,21 @@ export interface File {
 export interface FileObject {
 	Type: string;
 	Url: string;
-	OptimizedUrl?: string;
 	ExpiryTime?: string;
 	Size?: number;
+	Id?: string;
+	Name?: string;
+	Color?:
+		| "gray"
+		| "lightgray"
+		| "brown"
+		| "yellow"
+		| "orange"
+		| "green"
+		| "blue"
+		| "purple"
+		| "pink"
+		| "red";
 }
 
 export interface External {
@@ -165,12 +215,17 @@ export interface Code {
 	Caption: RichText[];
 	RichTexts: RichText[];
 	Language: string;
+	RenderMode?: "iframe";
+	IframeSizing?: {
+		Height?: number;
+		AspectRatio?: string;
+	};
 }
 
 export interface Quote {
 	RichTexts: RichText[];
 	Color: string;
-	Children?: Block[];
+	Children?: Block[] | undefined;
 }
 
 export interface Equation {
@@ -181,7 +236,7 @@ export interface Callout {
 	RichTexts: RichText[];
 	Icon: FileObject | Emoji | null;
 	Color: string;
-	Children?: Block[];
+	Children?: Block[] | undefined;
 }
 
 export interface SyncedBlock {
@@ -193,10 +248,14 @@ export interface SyncedFrom {
 	BlockId: string;
 }
 
+export interface Tab {
+	Children?: Block[];
+}
+
 export interface Toggle {
 	RichTexts: RichText[];
 	Color: string;
-	Children: Block[];
+	Children?: Block[];
 }
 
 export interface Embed {
@@ -243,28 +302,36 @@ export interface Column {
 	Children: Block[];
 }
 
-export interface List {
-	Type: string;
+export type List = Block & {
+	Type: "bulleted_list" | "numbered_list" | "to_do_list";
 	ListItems: Block[];
-}
+};
 
 export interface TableOfContents {
 	Color: string;
 }
 
 export interface RichText {
-	Text?: Text;
+	Text?: Text | undefined;
 	Annotation: Annotation;
 	PlainText: string;
-	Href?: string;
-	Equation?: Equation;
-	Mention?: Mention;
-	InternalHref?: Reference;
+	Href?: string | undefined;
+	Equation?: Equation | undefined;
+	Mention?: Mention | undefined;
+	InternalHref?: InterlinkedContent | undefined;
+
+	// Footnote marker (set by extractFootnotes during build)
+	FootnoteRef?: string | undefined; // e.g., "ft_a" (without [^] wrapper)
+	IsFootnoteMarker?: boolean | undefined;
+
+	// Citation marker (set by extractCitations during build)
+	CitationRef?: string | undefined; // e.g., "smith2020" (citation key)
+	IsCitationMarker?: boolean | undefined;
 }
 
 export interface Text {
 	Content: string;
-	Link?: Link;
+	Link?: Link | undefined;
 }
 
 export interface Emoji {
@@ -292,6 +359,17 @@ export interface SelectProperty {
 	description: string;
 }
 
+/**
+ * Author property extends SelectProperty with parsed metadata from description shortcodes.
+ * URL and photo are extracted from <<author-url>>...<<author-url>> and <<author-photo-url>>...<<author-photo-url>>
+ * Bio is the remaining text after shortcode extraction.
+ */
+export interface AuthorProperty extends SelectProperty {
+	url?: string | undefined;
+	photo?: string | undefined;
+	bio?: string | undefined;
+}
+
 export interface LinkToPage {
 	Type: string;
 	PageId: string;
@@ -299,8 +377,8 @@ export interface LinkToPage {
 
 export interface Mention {
 	Type: string;
-	Page?: Reference;
-	DateStr?: string;
+	Page?: InterlinkedContent | undefined;
+	DateStr?: string | undefined;
 	LinkMention?: LinkMention | undefined;
 	CustomEmoji?: CustomEmojiMention | undefined;
 }
@@ -308,21 +386,21 @@ export interface Mention {
 export interface LinkMention {
 	Href: string;
 	Title: string;
-	IconUrl?: string;
-	Description?: string;
-	LinkAuthor?: string;
-	ThumbnailUrl?: string;
-	Height?: number;
-	IframeUrl?: string;
-	LinkProvider?: string;
+	IconUrl?: string | undefined;
+	Description?: string | undefined;
+	LinkAuthor?: string | undefined;
+	ThumbnailUrl?: string | undefined;
+	Height?: number | undefined;
+	IframeUrl?: string | undefined;
+	LinkProvider?: string | undefined;
 }
 
 export interface CustomEmojiMention {
 	Name: string;
-	Url?: string;
+	Url?: string | undefined;
 }
 
-export interface Reference {
+export interface InterlinkedContent {
 	PageId: string;
 	Type: string;
 	BlockId?: string;
@@ -333,6 +411,7 @@ export type BlockTypes =
 	| "breadcrumb"
 	| "code"
 	| "bulleted_list_item"
+	| "bulleted_list"
 	| "callout"
 	| "child_database"
 	| "child_page"
@@ -345,10 +424,13 @@ export type BlockTypes =
 	| "heading_1"
 	| "heading_2"
 	| "heading_3"
+	| "heading_4"
 	| "image"
 	| "link_preview"
 	| "link_to_page"
+	| "mdx_snippet"
 	| "numbered_list_item"
+	| "numbered_list"
 	| "paragraph"
 	| "pdf"
 	| "quote"
@@ -356,8 +438,176 @@ export type BlockTypes =
 	| "table"
 	| "table_of_contents"
 	| "table_row"
+	| "tab"
 	| "template"
 	| "to_do"
+	| "to_do_list"
 	| "toggle"
 	| "video"
 	| "audio";
+
+// ============================================================================
+// Footnotes Types
+// ============================================================================
+
+/**
+ * Represents a single footnote extracted from content
+ */
+export interface Footnote {
+	Marker: string;
+	FullMarker: string;
+	Index?: number;
+	Content: {
+		Type: "rich_text" | "blocks" | "comment";
+		RichTexts?: RichText[];
+		Blocks?: Block[];
+		CommentAttachments?: CommentAttachment[] | undefined;
+	};
+	SourceLocation: "content" | "caption" | "table" | "comment";
+	SourceBlockId?: string;
+	SourceBlock?: Block;
+	// Table-cell position, so the footnotes section previews just the cell not the whole table.
+	SourceTableCell?: { row: number; cell: number };
+}
+
+/**
+ * Content of a footnote - can be RichText, Blocks, or Comments
+ */
+export interface FootnoteContent {
+	Type: "rich_text" | "blocks" | "comment";
+	RichTexts?: RichText[]; // For end-of-block, inline-latex-footnote-command, and block-comments
+	Blocks?: Block[]; // For start-of-child-blocks
+	CommentAttachments?: CommentAttachment[] | undefined; // For images in comments
+}
+
+/**
+ * Attachment from Notion Comments API
+ */
+export interface CommentAttachment {
+	Category: string;
+	Url: string;
+	Name?: string;
+	ExpiryTime: string;
+}
+
+/**
+ * Information about where a footnote marker was found
+ */
+export interface FootnoteMarkerInfo {
+	Marker: string; // e.g., "ft_a"
+	FullMarker: string; // e.g., "[^ft_a]"
+	Location: {
+		BlockProperty: string; // e.g., 'Paragraph.RichTexts' or 'NImage.Caption'
+		RichTextIndex: number;
+		CharStart: number;
+		CharEnd: number;
+	};
+}
+
+/**
+ * Configuration for footnotes system
+ */
+export interface FootnotesConfig {
+	"sitewide-footnotes-page-slug": string; // Legacy system slug
+	"in-page-footnotes-settings": {
+		enabled: boolean;
+		source: {
+			"end-of-block": boolean;
+			"start-of-child-blocks": boolean;
+			"block-comments": boolean;
+			"block-inline-text-comments": boolean;
+			"inline-latex-footnote-command": boolean;
+		};
+		"marker-prefix": string; // e.g., "ft_" → markers like [^ft_a]
+		"generate-footnotes-section": boolean; // Collated list at page end
+		"show-in-margin-on-large-screens": boolean; // Responsive: margin on large screens (≥1024px), popover on mobile
+	};
+}
+
+/**
+ * Result from extracting footnotes from a block
+ */
+export interface FootnoteExtractionResult {
+	footnotes: Footnote[];
+	hasProcessedRichTexts: boolean;
+	hasProcessedChildren: boolean;
+}
+
+/**
+ * Location of RichText array within a block
+ */
+export interface RichTextLocation {
+	property: string; // e.g., "Paragraph.RichTexts", "NImage.Caption"
+	richTexts: RichText[];
+	setter: (newRichTexts: RichText[]) => void;
+}
+
+// ============================================================================
+// Citations Types
+// ============================================================================
+
+/**
+ * Represents a single citation extracted from content
+ */
+export interface Citation {
+	Key: string; // e.g., "smith2020"
+	Index?: number | undefined; // Sequential index for IEEE style (1, 2, 3...)
+	FormattedEntry: string; // HTML formatted bibliography entry (dynamically selected based on style)
+	Authors: string; // "Smith et al." or "Smith, J."
+	Year: string; // "2020"
+	Url?: string | undefined; // URL to the cited work
+	SourceBlockIds: string[]; // ARRAY of all block IDs where this key appears
+	SourceBlocks?: Block[]; // ARRAY of actual Block objects where this key appears (like interlinked content)
+	FirstAppearanceIndex?: number; // Order of first occurrence in document
+	FirstAppearanceInMainContentIndex?: number; // Sequential index for first appearance in main content specifically (ignoring footnote content)
+	IsInFootnoteContent?: boolean; // True if citation appears in footnote content
+}
+
+/**
+ * Parsed and formatted citation entry stored in cache
+ * This is the minimal data we need for each citation
+ */
+export interface ParsedCitationEntry {
+	key: string; // Citation key (e.g., "smith2020")
+	authors: string; // Formatted authors string
+	year: string; // Publication year
+	url?: string; // URL to the citation source
+	ieee_formatted: string; // HTML formatted entry in IEEE style
+	apa_formatted: string; // HTML formatted entry in APA style
+}
+
+/**
+ * Configuration for citations system
+ */
+export interface CitationsConfig {
+	"add-cite-this-post-section": boolean;
+	"extract-and-process-bibtex-citations": {
+		enabled: boolean;
+		"bibtex-file-url-list": string[];
+		"in-text-citation-format": string; // "[@key]", "\cite{key}", or "#cite(key)"
+		"bibliography-format": {
+			"simplified-ieee": boolean;
+			apa: boolean;
+		};
+		"generate-bibliography-section": boolean;
+		"show-in-margin-on-large-screens": boolean;
+	};
+}
+
+/**
+ * Information about a BibTeX source URL
+ */
+export interface BibSourceInfo {
+	source: "github-gist" | "github-repo" | "dropbox" | "google-drive" | "unknown";
+	download_url: string;
+	updated_url: string | null; // null if no public timestamp available
+	updated_instructions: string | null;
+}
+
+/**
+ * Result from extracting citations from a block
+ */
+export interface CitationExtractionResult {
+	citations: Citation[];
+	processedRichTexts: boolean;
+}

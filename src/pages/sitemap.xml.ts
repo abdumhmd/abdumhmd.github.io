@@ -1,33 +1,38 @@
-// import { siteConfig } from "@/site-config";
 import { getAllPosts, getAllPages } from "@/lib/notion/client";
-import { getPostLink } from "@/lib/blog-helpers";
+import { resolvePostHref, getPostLink } from "@/lib/blog-helpers";
 import { HIDE_UNDERSCORE_SLUGS_IN_LISTS } from "@/constants";
 import { getCollections } from "@/utils";
 import { slugify } from "@/utils";
+import type { Post } from "@/lib/interfaces";
 
 export const GET = async () => {
 	const [posts, pages] = await Promise.all([getAllPosts(), getAllPages()]);
 
 	// Filter posts and pages
-	const filterEntries = (entries) =>
-		HIDE_UNDERSCORE_SLUGS_IN_LISTS
+	const filterEntries = (entries: Post[]): Post[] => {
+		const filtered = HIDE_UNDERSCORE_SLUGS_IN_LISTS
 			? entries.filter((entry) => !entry.Slug.startsWith("_"))
 			: entries;
+		return filtered.filter((entry) => !entry.IsExternal || !!entry.ExternalContent);
+	};
 
 	const filteredPosts = filterEntries(posts);
 	const filteredPages = filterEntries(pages);
 	const collections = await getCollections();
 
 	// Generate sitemap entries for posts and pages
-	const generateEntries = (entries, isPage) =>
+	const generateEntries = (entries: Post[], isPage: boolean) =>
 		entries
 			.map((entry) => {
-				const url = new URL(getPostLink(entry.Slug, isPage), import.meta.env.SITE).toString();
+				const url = new URL(
+					resolvePostHref(entry, { forceIsRoot: isPage }),
+					import.meta.env.SITE,
+				).toString();
 				return `<url><loc>${url}</loc></url>`;
 			})
 			.join("");
 
-	const generateCollectionEntries = (collectionNames) =>
+	const generateCollectionEntries = (collectionNames: string[]) =>
 		collectionNames
 			.map((collectionName) => {
 				const slugifiedName = slugify(collectionName);
@@ -39,7 +44,7 @@ export const GET = async () => {
 
 	const postEntries = generateEntries(filteredPosts, false);
 	const pageEntries = generateEntries(filteredPages, true);
-	const collectionEntries = generateCollectionEntries(collections);
+	const collectionEntries = generateCollectionEntries(collections!);
 
 	// Combine post and page entries
 	const combinedEntries = postEntries + pageEntries + collectionEntries;

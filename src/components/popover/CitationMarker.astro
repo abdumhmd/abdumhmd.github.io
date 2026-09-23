@@ -1,0 +1,167 @@
+---
+import Icon from "@/components/ui/Icon.astro";
+import type { RichText, Block, Citation } from "@/lib/interfaces";
+import { BIBLIOGRAPHY_STYLE, CITATIONS, BIBTEX_CITATIONS_ENABLED } from "@/constants";
+import { adjustedFootnotesConfig } from "@/lib/notion/client";
+
+export interface Props {
+	richText: RichText;
+	blockID: string;
+	block: Block;
+}
+
+const { richText, blockID, block } = Astro.props;
+
+// Get the citation key reference (e.g., "smith2020")
+const citationRef = richText.CitationRef;
+
+// Find the corresponding citation in block.Citations
+let citation: Citation | undefined = undefined;
+if (block.Citations && citationRef) {
+	citation = block.Citations.find((c) => c.Key === citationRef);
+}
+
+// Generate unique ID for this citation marker (using random component to avoid duplicates when same content appears multiple times)
+const uniqueId = `citation-${Math.random().toString(16).slice(2)}-${block.Id}-${citationRef}`;
+
+// Determine what to display:
+// - IEEE: [1], [2], etc. (using Index)
+// - APA: (Author et al, Year)
+let displayText = "";
+
+if (citation) {
+	if (BIBLIOGRAPHY_STYLE === "simplified-ieee" && citation.Index) {
+		// IEEE: Show numbers
+		displayText = `[${citation.Index}]`;
+	} else {
+		// APA style: Show author/year
+		displayText = `(${citation.Authors}, ${citation.Year})`;
+	}
+} else {
+	displayText = `[?]`;
+}
+
+// Check if bibliography section is being generated
+const showBibliography =
+	BIBTEX_CITATIONS_ENABLED &&
+	CITATIONS?.["extract-and-process-bibtex-citations"]?.["generate-bibliography-section"] === true;
+
+// Determine if citation should show in margin
+const footnoteMargin =
+	adjustedFootnotesConfig?.["in-page-footnotes-settings"]?.["show-in-margin-on-large-screens"] ===
+	true;
+const citationMargin =
+	CITATIONS?.["extract-and-process-bibtex-citations"]?.["show-in-margin-on-large-screens"] === true;
+
+const shouldShowInMargin = (() => {
+	if (!citation) return false; // Broken citation → no margin
+	if (!citationMargin) return false; // Citation margin disabled → always popover
+
+	// When both margins are enabled: show first occurrence anywhere
+	if (footnoteMargin) {
+		if (!citation.FirstAppearanceIndex) return false; // Not first occurrence globally → popover
+		return true; // First occurrence (anywhere) → margin
+	}
+
+	// When footnote margin is disabled but citation margin is enabled:
+	// Only show first occurrence in main content (not first in footnote)
+	if (!footnoteMargin && !citation.FirstAppearanceInMainContentIndex) return false; // Not first in main content → popover
+	return true; // First occurrence in main content → margin
+})();
+---
+
+{/* If no citation content found, render as muted text (broken reference) */}
+{
+	!citation ? (
+		<span class="citation-marker-broken text-textColor/70" title="Citation not found">
+			{richText.PlainText}
+		</span>
+	) : (
+		<>
+			{/* Render citation marker with appropriate attributes for popover or margin mode */}
+			{shouldShowInMargin ? (
+				<span class="citation-marker-underline">
+					<span
+						data-margin-note={uniqueId}
+						data-citation-key={citation.Key}
+						data-popover-target={`popover-description-${uniqueId}`}
+						data-popover-placement="bottom-end"
+						class="citation-marker-ref"
+						aria-label="Show information for the linked content"
+					>
+						{displayText}
+					</span>
+				</span>
+			) : (
+				<span class="citation-marker-underline">
+					<span
+						data-popover-target={`popover-description-${uniqueId}`}
+						data-citation-key={citation.Key}
+						data-popover-placement="bottom-end"
+						class="citation-marker-ref"
+						aria-label="Show information for the linked content"
+					>
+						{displayText}
+					</span>
+				</span>
+			)}
+
+			{/* Template for popover content */}
+			<template id={`template-popover-description-${uniqueId}`}>
+				<div
+					data-popover
+					id={`popover-description-${uniqueId}`}
+					data-source-block-id={blockID}
+					data-citation-key={citation.Key}
+					role="tooltip"
+					class="popoverEl notion-popover hidden"
+				>
+					<div class="space-y-2 p-2">
+						<div class="citation-content" set:html={citation.FormattedEntry} />
+						{showBibliography && (
+							<div class="jump-to-bibliography pt-2">
+								<a
+									href={`#citation-def-${citation.Key}`}
+									data-popover-link
+									data-jump-to-bibliography
+									data-target-id={`citation-def-${citation.Key}`}
+									data-origin-block={blockID}
+									class="notion-popover-link"
+								>
+									{"Jump to bibliography"}
+									<Icon
+										class="text-accent group-hover:text-accent-2 ms-1.5 h-3 w-3 rtl:rotate-180"
+										name={"jump"}
+										aria-hidden="true"
+										focusable="false"
+									/>
+								</a>
+							</div>
+						)}
+					</div>
+				</div>
+			</template>
+
+			{/* Template for margin notes content (same structure, used by margin notes script) */}
+			{shouldShowInMargin && (
+				<template id={`template-margin-${uniqueId}`}>
+					<div class="text-sm!">
+						<span class="text-quote font-mono text-xs!">{displayText}</span>{" "}
+						<span class="citation-content" set:html={citation.FormattedEntry} />
+						{showBibliography && (
+							<a
+								href={`#citation-def-${citation.Key}`}
+								data-jump-to-bibliography
+								data-target-id={`citation-def-${citation.Key}`}
+								data-origin-block={blockID}
+								class="text-link/90 ml-1 inline-flex items-center gap-1 align-middle hover:underline"
+							>
+								<Icon class="inline-block h-3 w-3" name={"jump"} />
+							</a>
+						)}
+					</div>
+				</template>
+			)}
+		</>
+	)
+}

@@ -1,0 +1,219 @@
+---
+import FormattedDate from "@/components/ui/FormattedDate.astro";
+import AuthorByline from "@/components/layout/AuthorByline.astro";
+import { getPostContentByPostId } from "@/lib/notion/client";
+import {
+	getNavLink,
+	resolvePostHref,
+	setCurrentHeadings,
+	isExternalPost,
+	getNotionImage,
+	getImageComponentFormat,
+} from "@/lib/blog-helpers";
+import NotionBlocks from "@/components/NotionBlocks.astro";
+import { getNotionColorToTailwindColor } from "@/utils/style-helpers";
+import { BUILD_FOLDER_PATHS, COVER_AS_HERO_BACKGROUND_ENABLED } from "@/constants";
+import Icon from "@/components/ui/Icon.astro";
+import { buildHeadings, slugify } from "@/utils";
+import fs from "fs/promises";
+import path from "node:path";
+import superjson from "superjson";
+import { getImage } from "astro:assets";
+import HeroBackgroundCover from "@/components/layout/HeroBackgroundCover.astro";
+
+const {
+	post_full_preview,
+	shouldUseCache,
+	postLastUpdatedBeforeLastBuild,
+	as: Tag = "div",
+	withDesc = false,
+} = Astro.props;
+const external = isExternalPost(post_full_preview);
+
+let blocks = null;
+
+if (!external) {
+	const result = await getPostContentByPostId(post_full_preview);
+	blocks = result.blocks;
+}
+
+// --- Headings Cache Handling ---
+let headings = null;
+const headingsCacheDir = BUILD_FOLDER_PATHS["headingsCache"];
+const headingsCacheFile = path.join(headingsCacheDir, `${post_full_preview.Slug}.json`);
+
+if (!external) {
+	let cachedHeadings = null;
+	if (postLastUpdatedBeforeLastBuild) {
+		try {
+			const headingsData = await fs.readFile(headingsCacheFile, "utf-8");
+			cachedHeadings = superjson.parse(headingsData);
+		} catch (e) {
+			cachedHeadings = null;
+		}
+	}
+
+	if (cachedHeadings) {
+		headings = cachedHeadings;
+	} else if (blocks) {
+		headings = buildHeadings(blocks);
+		try {
+			await fs.writeFile(headingsCacheFile, superjson.stringify(headings), "utf-8");
+		} catch (e) {
+			console.error("Error saving headings cache:", e);
+		}
+	}
+
+	if (headings) {
+		setCurrentHeadings(headings);
+	}
+}
+
+// --- HTML Cache Handling ---
+let cachedHtml = "";
+if (!external && shouldUseCache) {
+	const htmlCacheFile = path.join(
+		BUILD_FOLDER_PATHS["blocksHtmlCache"],
+		`${post_full_preview.Slug}.html`,
+	);
+	try {
+		cachedHtml = await fs.readFile(htmlCacheFile, "utf-8");
+	} catch (e) {
+		// Cache file doesn't exist; fallback to fresh rendering.
+		cachedHtml = "";
+	}
+}
+
+const postLink = resolvePostHref(post_full_preview);
+
+// Check if we should show cover as hero background
+const hasCover = post_full_preview.Cover && post_full_preview.Cover.Url;
+const showHeroBackground = COVER_AS_HERO_BACKGROUND_ENABLED && hasCover;
+
+// Get cover image URL for background
+let coverImageUrl = "";
+let coverPlaceholderUrl = "";
+if (showHeroBackground && post_full_preview.Cover?.Url) {
+	try {
+		const coverUrl = new URL(post_full_preview.Cover.Url);
+		const downloadedImage = await getNotionImage(coverUrl);
+
+		if (downloadedImage) {
+			const optimized = await getImage({
+				src: downloadedImage,
+				format: getImageComponentFormat(downloadedImage),
+				quality: 65,
+				width: downloadedImage.width > 2100 ? 2100 : downloadedImage.width,
+			});
+			coverImageUrl = optimized?.src || downloadedImage.src;
+
+			try {
+				const tiny = await getImage({
+					src: downloadedImage,
+					format: getImageComponentFormat(downloadedImage),
+					quality: 5,
+					width: downloadedImage.width > 2100 ? 2100 : downloadedImage.width,
+				});
+				coverPlaceholderUrl = tiny?.src || coverImageUrl;
+			} catch {
+				coverPlaceholderUrl = coverImageUrl;
+			}
+		} else {
+			coverImageUrl = post_full_preview.Cover.Url;
+			coverPlaceholderUrl = post_full_preview.Cover.Url;
+		}
+	} catch {
+		coverImageUrl = post_full_preview.Cover.Url;
+		coverPlaceholderUrl = post_full_preview.Cover?.Url || "";
+	}
+}
+---
+
+<HeroBackgroundCover
+	enableBackground={showHeroBackground}
+	backgroundUrl={coverImageUrl}
+	placeholderUrl={coverPlaceholderUrl}
+	class="mb-4"
+>
+	<FormattedDate date={post_full_preview.Date} class="post-card-date" />
+
+	<Tag class="font-bold">
+		{
+			external && (
+				<a href={postLink} target="_blank" rel="nofollow noopener" aria-label="Visit external site">
+					<Icon name={"external-link"} class="h-3.5 w-3.5" aria-hidden="true" />
+					Ext
+				</a>
+			)
+		}
+		{
+			post_full_preview.Pinned && (
+				<Icon
+					class="me-1 inline-block h-6 w-6"
+					name={"pin"}
+					aria-label="Pinned Post"
+					focusable="false"
+					fill="#D50B0D"
+				/>
+			)
+		}
+		<a
+			href={postLink}
+			class="site-page-link inline no-underline"
+			target={external ? "_blank" : undefined}
+			rel={external ? "nofollow noopener" : undefined}
+		>
+			{post_full_preview.Title}
+		</a>
+	</Tag>
+
+	{
+		withDesc && post_full_preview.Excerpt && (
+			<q class="line-clamp-3 block italic">{post_full_preview.Excerpt}</q>
+		)
+	}
+
+	{
+		post_full_preview.Tags && post_full_preview.Tags.length > 0 && (
+			<div class="mt-1 gap-2">
+				<Icon
+					class="me-1 inline-block h-4 w-4"
+					name={"tag-outline"}
+					aria-hidden="true"
+					focusable="false"
+				/>
+				{post_full_preview.Tags.map((tag: { name: string; color?: string }) => (
+					<>
+						<a
+							class={`notion-tag ${getNotionColorToTailwindColor(tag.color + "-background", true)}`}
+							aria-label={`View more blogs with the tag ${tag.name}`}
+							href={getNavLink("/tags/" + slugify(tag.name) + "/")}
+						>
+							{tag.name}
+						</a>{" "}
+					</>
+				))}
+			</div>
+		)
+	}
+
+	{
+		post_full_preview.Authors !== undefined && (
+			<AuthorByline authors={post_full_preview.Authors} compact={true} />
+		)
+	}
+</HeroBackgroundCover>
+{
+	external ? null : (
+		<section
+			class="post-body post-preview-full-container"
+			data-html-type={shouldUseCache && cachedHtml ? "cached" : "new"}
+		>
+			{shouldUseCache && cachedHtml ? (
+				<div set:html={cachedHtml} />
+			) : (
+				blocks && <NotionBlocks blocks={blocks} />
+			)}
+		</section>
+	)
+}

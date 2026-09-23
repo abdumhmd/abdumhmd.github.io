@@ -1,19 +1,32 @@
 ---
-import Search from "@/components/Search.astro";
+import { Image } from "astro:assets";
+import Search from "@/components/ui/Search.astro";
 import { getMenu } from "@/utils";
 import { siteInfo } from "@/site.config";
-import { filePath, getNavLink } from "@/lib/blog-helpers";
-import Icon from "@/components/Icon.astro";
-import ThemeIcon from "@/components/ThemeIcon.astro";
+import { getNavLink, getNotionImage, normalizeNavPath } from "@/lib/blog-helpers";
+import Icon from "@/components/ui/Icon.astro";
+import ThemeIcon from "@/components/ui/ThemeIcon.astro";
+import { isNotionHostedIconUrl } from "@/lib/notion/client";
 
 const menuLinks = await getMenu();
 
 const url = new URL(Astro.request.url);
+const currentPath = normalizeNavPath(url.pathname);
 
-let customIconURL: string = "";
-if (siteInfo.logo && siteInfo.logo.Type === "file") {
+let customIconImage = null;
+const logo = siteInfo.logo;
+const logoUrl = logo && "Url" in logo ? logo.Url : null;
+const logoEmoji = logo && "Emoji" in logo ? logo.Emoji : null;
+const shouldUseLocalLogo =
+	logoUrl &&
+	(logo?.Type === "file" ||
+		logo?.Type === "custom_emoji" ||
+		logo?.Type === "icon" ||
+		isNotionHostedIconUrl(logoUrl));
+
+if (shouldUseLocalLogo) {
 	try {
-		customIconURL = filePath(new URL(siteInfo.logo.Url));
+		customIconImage = await getNotionImage(new URL(logoUrl));
 	} catch (err) {
 		console.log("Invalid DB custom icon URL");
 	}
@@ -22,40 +35,42 @@ if (siteInfo.logo && siteInfo.logo.Type === "file") {
 const rss_path = getNavLink("/rss.xml");
 ---
 
-<header
-	id="main-header"
-	class="group relative mb-8 flex w-full items-center justify-between sm:ps-[4.5rem] lg:-ml-[25%] lg:w-[150%]"
->
+<header id="main-header" class="site-header group">
 	<div class="flex sm:flex-col">
 		<a
 			href={getNavLink("/")}
-			class="inline-flex items-center grayscale hover:filter-none sm:relative sm:inline-block"
-			aria-current={url.pathname === "/" ? "page" : false}
+			class="inline-flex items-center grayscale transition-[filter] duration-200 ease-out hover:filter-none sm:relative sm:inline-block"
+			aria-current={currentPath === "/" ? "page" : false}
 		>
 			{
-				siteInfo.logo && siteInfo.logo.Type === "emoji" ? (
+				logo?.Type === "emoji" ? (
 					<>
 						<span class="me-3 h-10 w-10 sm:absolute sm:start-[-4.5rem] sm:me-0 sm:h-15 sm:w-15">
-							{siteInfo.logo.Emoji}
+							{logoEmoji}
 						</span>
 						<span class="text-xl font-bold sm:text-2xl">{siteInfo.title}</span>
 					</>
-				) : siteInfo.logo && siteInfo.logo.Type === "external" ? (
+				) : customIconImage ? (
 					<>
-						<img
+						<Image
+							priority
+							src={customIconImage}
+							widths={[200]}
+							sizes="60px"
 							class="me-3 h-10 w-10 object-contain sm:absolute sm:start-[-4.5rem] sm:me-0 sm:h-15 sm:w-15"
-							loading="eager"
-							src={siteInfo.logo.Url}
 							alt="Site header image"
 						/>
 						<span class="text-xl font-bold sm:text-2xl">{siteInfo.title}</span>
 					</>
-				) : siteInfo.logo && siteInfo.logo.Type === "file" && customIconURL ? (
+				) : logoUrl ? (
 					<>
 						<img
-							loading="eager"
-							src={customIconURL}
 							class="me-3 h-10 w-10 object-contain sm:absolute sm:start-[-4.5rem] sm:me-0 sm:h-15 sm:w-15"
+							loading="eager"
+							fetchpriority="high"
+							width="60"
+							height="60"
+							src={logoUrl}
 							alt="Site header image"
 						/>
 						<span class="text-xl font-bold sm:text-2xl">{siteInfo.title}</span>
@@ -65,18 +80,16 @@ const rss_path = getNavLink("/rss.xml");
 				)
 			}
 		</a>
-		<nav
-			id="navigation-menu"
-			class="md bg-bgColor/90 text-accent absolute -inset-x-4 top-14 hidden flex-col items-end rounded-md py-2 text-base shadow-sm backdrop-blur-sm group-[.menu-open]:z-50 group-[.menu-open]:flex sm:static sm:z-auto sm:-ms-4 sm:mt-1 sm:flex sm:flex-row sm:items-center sm:rounded-none sm:py-0 sm:text-sm sm:shadow-none sm:backdrop-blur-none lg:text-base print:hidden"
-			aria-label="Main menu"
-		>
+		<nav id="navigation-menu" class="nav-menu" aria-label="Main menu">
 			{
 				menuLinks.map((link) => (
 					<a
 						href={link.path}
-						class="sm:hover:decoration-accent-2/40 w-full px-4 py-4 text-right underline-offset-4 sm:w-auto sm:py-0 sm:text-left sm:hover:underline sm:hover:decoration-wavy"
-						aria-current={url.pathname === link.path ? "page" : false}
+						class="nav-link"
+						aria-current={currentPath === normalizeNavPath(link.path) ? "page" : false}
 						data-astro-prefetch
+						data-page-icon-emoji={link.icon?.emoji}
+						data-page-icon-image={link.icon?.image}
 					>
 						{link.title}
 					</a>
@@ -86,10 +99,14 @@ const rss_path = getNavLink("/rss.xml");
 	</div>
 	<div class="flex flex-row print:hidden">
 		<div
-			class="hover:text-accent hover:ring-accent-400 h-10 w-10 cursor-pointer items-center justify-center rounded-md p-1.5 hover:ring-2"
+			class="hover:text-accent h-10 w-10 cursor-pointer items-center justify-center rounded-md p-1.5"
 		>
 			<a href={rss_path}
-				><Icon name={"rss"} class="hover:text-accent h-7 w-7" aria-label="Open RSS Link" /></a
+				><Icon
+					name={"rss"}
+					class="hover:text-accent h-7 w-7 transition-colors duration-150 ease-out"
+					aria-label="Open RSS Link"
+				/></a
 			>
 		</div>
 		<Search />
@@ -105,14 +122,14 @@ const rss_path = getNavLink("/rss.xml");
 			>
 				<Icon
 					name={"menu"}
-					class="absolute start-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 transition-all group-aria-expanded:scale-0 group-aria-expanded:opacity-0"
+					class="absolute start-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 transition-[transform,opacity] duration-200 ease-out group-aria-expanded:scale-75 group-aria-expanded:opacity-0"
 					aria-hidden="true"
 					focusable="false"
 				/>
 
 				<Icon
 					name={"close"}
-					class="text-accent absolute start-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-0 opacity-0 transition-all group-aria-expanded:scale-100 group-aria-expanded:opacity-100"
+					class="text-accent absolute start-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-75 opacity-0 transition-[transform,opacity] duration-200 ease-out group-aria-expanded:scale-100 group-aria-expanded:opacity-100"
 					aria-hidden="true"
 					focusable="false"
 				/>
@@ -127,32 +144,36 @@ const rss_path = getNavLink("/rss.xml");
 			super();
 
 			const mobileButtonEl = document.getElementById("toggle-navigation-menu");
+			if (!(mobileButtonEl instanceof HTMLElement)) return;
+			const mobileButton = mobileButtonEl;
 			let menuOpen = false;
 
 			function toggleMobileMenu() {
 				const headerEl = document.getElementById("main-header")!;
 				headerEl.classList.toggle("menu-open");
 				menuOpen = !menuOpen;
-				mobileButtonEl.setAttribute("aria-expanded", menuOpen.toString());
+				mobileButton.setAttribute("aria-expanded", menuOpen.toString());
 			}
 
-			mobileButtonEl.addEventListener("click", () => toggleMobileMenu());
+			mobileButton.addEventListener("click", () => toggleMobileMenu());
 		}
 	}
 
 	customElements.define("mobile-button", MobileNavBtn);
 
 	document.addEventListener("DOMContentLoaded", function () {
-		var toggleButton = document.getElementById("toggle-navigation-menu");
+		const toggleButton = document.getElementById("toggle-navigation-menu");
+		if (!(toggleButton instanceof HTMLElement)) return;
 
 		document.addEventListener("click", function (event) {
 			var navMenu = document.getElementById("navigation-menu");
 			var mainHeader = document.getElementById("main-header");
 
 			// Check if the click is on the toggle button or a descendant of it
-			var isClickInsideToggleButton = toggleButton.contains(event.target);
+			var isClickInsideToggleButton =
+				event.target instanceof Node && toggleButton.contains(event.target);
 
-			if (!isClickInsideToggleButton && event.target instanceof Node) {
+			if (!isClickInsideToggleButton && event.target instanceof Node && navMenu) {
 				var isClickInsideNav = navMenu.contains(event.target);
 
 				if (!isClickInsideNav && mainHeader) {

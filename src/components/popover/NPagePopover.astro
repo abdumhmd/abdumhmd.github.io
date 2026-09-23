@@ -1,0 +1,66 @@
+---
+import Icon from "@/components/ui/Icon.astro";
+
+interface Props {
+	excerpt?: string;
+	linkedTo: string;
+	popoverSpanText: string;
+	popoverTitle: string;
+	postId: string;
+	linkText?: string;
+}
+const {
+	excerpt = "",
+	linkedTo,
+	popoverSpanText,
+	popoverTitle,
+	postId,
+	linkText = "Read more",
+} = Astro.props;
+let id = "id" + Math.random().toString(16).slice(2) + "---" + postId;
+---
+
+<span class="site-page-link text-link">
+	<span
+		data-popover-target={`popover-description-${id}`}
+		data-popover-placement="bottom-end"
+		class="cursor-pointer"
+		data-href={linkedTo}
+		id={`popover-click-${id}`}
+		aria-label="Show information for the linked content"
+	>
+		{popoverSpanText ? popoverSpanText : <slot />}
+	</span>
+</span>
+
+<template id={`template-popover-description-${id}`}>
+	<div
+		data-popover
+		id={`popover-description-${id}`}
+		role="tooltip"
+		class="popoverEl notion-popover hidden"
+	>
+		<div
+			class="cursor-pointer space-y-2 p-3"
+			data-popover-card-link
+			data-href={linkedTo}
+			role="link"
+			tabindex="0"
+		>
+			<h3 class="notion-popover-title">
+				{popoverTitle}
+			</h3>
+			{excerpt && <p>{excerpt}</p>}
+			<a href={linkedTo} data-popover-link class="notion-popover-link">
+				{linkText}
+				<Icon
+					class="ms-1.5 h-3 w-3 rtl:rotate-180"
+					name={"jump"}
+					aria-hidden="true"
+					focusable="false"
+				/>
+			</a>
+		</div>
+		<div data-popper-arrow></div>
+	</div>
+</template>

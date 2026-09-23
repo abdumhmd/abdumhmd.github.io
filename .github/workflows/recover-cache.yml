@@ -1,0 +1,69 @@
+name: Recover Cache
+
+on:
+  workflow_dispatch:
+    inputs:
+      cache_key:
+        description: "The exact key or prefix of the cache to recover"
+        required: true
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: List all caches
+        run: |
+          gh cache list
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine path to recover
+        id: determine_path
+        run: |
+          if [[ "${{ github.event.inputs.cache_key }}" == *"constants-config"* ]]; then
+            # Check if user specified .json5 or .json explicitly in the cache key
+            if [[ "${{ github.event.inputs.cache_key }}" == *".json5"* ]]; then
+              echo "path=constants-config.json5" >> $GITHUB_OUTPUT
+            elif [[ "${{ github.event.inputs.cache_key }}" == *".json"* ]]; then
+              echo "path=constants-config.json" >> $GITHUB_OUTPUT
+            else
+              # No explicit format in key - prefer .json5 if it exists, otherwise .json
+              if [ -f "constants-config.json5" ]; then
+                echo "path=constants-config.json5" >> $GITHUB_OUTPUT
+              else
+                echo "path=constants-config.json" >> $GITHUB_OUTPUT
+              fi
+            fi
+          elif [[ "${{ github.event.inputs.cache_key }}" == *"tmp-webtrotion"* ]]; then
+            echo "path=tmp" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.cache_key }}" == *"public-webtrotion"* ]]; then
+            echo "path=public" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.cache_key }}" == *"modules"* ]]; then
+            echo "path=node_modules" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.cache_key }}" == *"old-package-json-cache"* ]]; then
+            echo "path=old_package.json" >> $GITHUB_OUTPUT
+          else
+            echo "::error::Could not determine path to recover from cache key. Please check the cache key."
+            exit 1
+          fi
+
+      - name: Restore Cache
+        id: cache-restore
+        uses: actions/cache/restore@v5
+        with:
+          path: ./${{ steps.determine_path.outputs.path }}
+          key: ${{ github.event.inputs.cache_key }}
+          restore-keys: |
+            ${{ github.event.inputs.cache_key }}
+
+      - name: List restored files
+        run: ls -lR ./${{ steps.determine_path.outputs.path }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: recovered-${{ github.event.inputs.cache_key }}
+          path: ./${{ steps.determine_path.outputs.path }}

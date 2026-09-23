@@ -25,6 +25,8 @@ import SpotifyEmbed from "@/components/notion-blocks/embeds/SpotifyEmbed.astro";
 import GoogleMapsEmbed from "@/components/notion-blocks/embeds/GoogleMapsEmbed.astro";
 import BlueskyEmbed from "@/components/notion-blocks/embeds/BlueskyEmbed.astro";
 import NotionEmbed from "@/components/notion-blocks/embeds/NotionEmbed.astro";
+import { joinPlainText, resolveLeadingMarker } from "@/utils/richtext-utils";
+import { SHORTCODES } from "@/constants";
 
 export interface Props {
 	block: interfaces.Block;
@@ -32,9 +34,9 @@ export interface Props {
 	setId?: boolean;
 }
 const { block, urlMap, setId = true } = Astro.props;
-let url: URL;
+let url: URL | null = null;
 try {
-	url = new URL(block.Embed.Url);
+	if (block.Embed?.Url) url = new URL(block.Embed.Url);
 } catch (err) {
 	console.log(err);
 }
@@ -56,10 +58,16 @@ if (url) {
 	url = transformEmbedUrl(url);
 }
 
-const plainTextCaption = block.Embed?.Caption.map((richText) => richText.PlainText).join(" ");
+const isWide =
+	setId &&
+	resolveLeadingMarker(block.Embed, block.Embed?.Caption, SHORTCODES["wide-breakout"], "__wide");
+const plainTextCaption = joinPlainText(block.Embed?.Caption || []);
 ---
 
-<div class="embedded-info max-w-full pb-2" id={setId ? block.Id : undefined}>
+<div
+	class:list={["embedded-info max-w-full pb-2", { "webtrotion-wide-breakout": isWide }]}
+	id={setId ? block.Id : undefined}
+>
 	{
 		url ? (
 			isTweetURL(url) ? (

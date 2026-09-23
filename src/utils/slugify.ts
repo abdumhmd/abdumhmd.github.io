@@ -1943,18 +1943,22 @@ const defaultReplacements = [
 	["°", "degrees"],
 ];
 
-function escapeRegExp(string) {
+function escapeRegExp(string: string) {
 	if (typeof string !== "string") {
 		throw new TypeError("Expected a string");
 	}
 	return string.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&").replace(/-/g, "\\x2d");
 }
 
-export function slugify(string, replacements = defaultReplacements, separator = "-") {
+export function slugify(
+	string: string | number,
+	replacements = defaultReplacements,
+	separator = "-",
+) {
 	try {
 		let slug = string.toString().trim();
 
-		replacements.forEach(([oldValue, newValue]) => {
+		(replacements as [string, string][]).forEach(([oldValue, newValue]) => {
 			slug = slug.replace(new RegExp(escapeRegExp(oldValue), "g"), newValue);
 		});
 
@@ -1971,7 +1975,7 @@ export function slugify(string, replacements = defaultReplacements, separator = 
 			.replace(/'/g, "")
 			.replace(/#+([a-zA-Z0-9_]+)/gi, "hashtag $&")
 			.replace(/#([0-9]\d*)/g, "number $&")
-			.replace("hashtag number", "number")
+			.replace(/hashtag number/g, "number")
 			.replace(/--+/g, " ")
 			.replace(/[^\p{L}\p{N}_\s-]/gu, " ")
 			.replace(/\s+/g, separator)
@@ -1980,6 +1984,6 @@ export function slugify(string, replacements = defaultReplacements, separator = 
 
 		return slug;
 	} catch (error) {
-		throw new Error(`Error in slugify: ${error.message}`);
+		throw new Error(`Error in slugify: ${error instanceof Error ? error.message : String(error)}`);
 	}
 }

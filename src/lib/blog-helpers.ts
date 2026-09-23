@@ -1,28 +1,94 @@
-import { BUILD_FOLDER_PATHS, HOME_PAGE_SLUG, MENU_PAGES_COLLECTION } from "../constants";
+import {
+	BUILD_FOLDER_PATHS,
+	HOME_PAGE_SLUG,
+	MENU_PAGES_COLLECTION,
+	BIBLIOGRAPHY_STYLE,
+} from "../constants";
 import type {
 	Block,
 	Heading1,
 	Heading2,
 	Heading3,
+	Heading4,
 	RichText,
 	Column,
-	ReferencesInPage,
+	InterlinkedContentInPage,
 	Post,
+	Footnote,
+	Citation,
 } from "@/lib/interfaces";
+import type { ImageMetadata } from "astro";
 import { slugify } from "../utils/slugify";
-import path from "path";
+import path from "node:path";
 import fs from "node:fs";
 import { getBlock, getPostByPageId } from "../lib/notion/client";
 import superjson from "superjson";
+import { prepareBibliography } from "./citations";
+import { joinPlainText } from "../utils/richtext-utils";
 
 const BASE_PATH = import.meta.env.BASE_URL;
-let referencesInPageCache: { [entryId: string]: ReferencesInPage[] } | null = null;
-let referencesToPageCache: { [entryId: string]: { entryId: string; block: Block }[] } | null = null;
+let downloadedImagesinSrc: Record<string, { default: ImageMetadata }> | null = null;
+let interlinkedContentInPageCache: { [entryId: string]: InterlinkedContentInPage[] } | null = null;
+let interlinkedContentToPageCache: {
+	[entryId: string]: { entryId: string; block: Block }[];
+} | null = null;
 let firstImage = true;
 let track_current_page_id: string | null = null;
-let current_headings = null;
+let current_headings: unknown = null;
 
-export function setCurrentHeadings(headings) {
+function getDownloadedImagesInSrc() {
+	if (!downloadedImagesinSrc) {
+		downloadedImagesinSrc = import.meta.glob<{ default: ImageMetadata }>(
+			"/src/assets/notion/**/*.{jpeg,jpg,png,gif,webp,avif,svg}",
+			{ eager: true },
+		);
+	}
+	return downloadedImagesinSrc;
+}
+
+export async function getNotionImage(url: URL): Promise<ImageMetadata | null> {
+	// Extract the second-to-last and last segments (matches generateFilePath logic)
+	const segments = url.pathname.split("/");
+	let dirName = segments.slice(-2)[0];
+	let filename = decodeURIComponent(segments.slice(-1)[0] || "");
+
+	if (url.hostname.includes("unsplash")) {
+		if (url.searchParams.has("fm")) {
+			const ext = url.searchParams.get("fm");
+			if (ext && !path.extname(filename)) {
+				filename = `${filename}.${ext}`;
+			}
+		}
+
+		if (!dirName || dirName === "") {
+			dirName = "page-cover";
+		}
+	}
+
+	const imagePath = `/src/assets/notion/${dirName}/${filename}`;
+	let downloadedImagesinSrcUpdated = getDownloadedImagesInSrc();
+
+	// Check if image exists in the eager glob results
+	if (!downloadedImagesinSrcUpdated[imagePath]) {
+		// console.warn(`Image not found in glob: ${imagePath}`);
+		return null;
+	}
+
+	// Return the eagerly loaded image
+	return downloadedImagesinSrcUpdated[imagePath].default;
+}
+
+export function getImageComponentFormat(
+	imageMetadata: ImageMetadata,
+): "svg" | "avif" | "gif" | "webp" {
+	const format = imageMetadata.format;
+	if (format === "svg" || format === "avif" || format === "gif") {
+		return format;
+	}
+	return "webp";
+}
+
+export function setCurrentHeadings(headings: unknown) {
 	current_headings = headings;
 	return true;
 }
@@ -51,61 +117,61 @@ export function setTrackCurrentPageId(pageId: string) {
 	track_current_page_id = pageId;
 	return true;
 }
-export function getTrackCurrentPageId() {
-	return track_current_page_id;
-}
 
 export const filePath = (url: URL): string => {
 	const [dir, filename] = url.pathname.split("/").slice(-2);
-	return path.join(BASE_PATH, `/notion/${dir}/${filename}`);
-	// return path.join(BASE_PATH, `./src/notion-assets/${dir}/${filename}`);
+	return path.join(BASE_PATH, `/notion/${dir || ""}/${decodeURIComponent(filename || "")}`);
 };
 
 export const buildTimeFilePath = (url: URL): string => {
 	const [dir, filename] = url.pathname.split("/").slice(-2);
-	return `/notion/${dir}/${filename}`;
-	// return path.join(BASE_PATH, `./src/notion-assets/${dir}/${filename}`);
+	return `/notion/${dir || ""}/${decodeURIComponent(filename || "")}`;
 };
 
-export function getReferencesInPage(entryId: string) {
-	// Load and aggregate data if referencesInPageCache is null
-	if (referencesInPageCache === null) {
-		referencesInPageCache = Object.fromEntries(
-			fs.readdirSync(BUILD_FOLDER_PATHS["referencesInPage"]).map((file) => {
+export function getInterlinkedContentInPage(entryId: string) {
+	// Load and aggregate data if interlinkedContentInPageCache is null
+	if (interlinkedContentInPageCache === null) {
+		interlinkedContentInPageCache = Object.fromEntries(
+			fs.readdirSync(BUILD_FOLDER_PATHS["interlinkedContentInPage"]).map((file) => {
 				const pageId = file.replace(".json", "");
 				return [
 					pageId,
 					superjson.parse(
-						fs.readFileSync(path.join(BUILD_FOLDER_PATHS["referencesInPage"], file), "utf-8"),
+						fs.readFileSync(
+							path.join(BUILD_FOLDER_PATHS["interlinkedContentInPage"], file),
+							"utf-8",
+						),
 					),
 				];
 			}),
 		);
 	}
-
-	// Return the references for the given entryId, or null if not found
-	return referencesInPageCache ? referencesInPageCache[entryId] : null;
+	// Return the interlinked content for the given entryId, or null if not found
+	return interlinkedContentInPageCache ? interlinkedContentInPageCache[entryId] : null;
 }
 
-export function getReferencesToPage(entryId: string) {
-	// Load and aggregate data if referencesInPageCache is null
-	if (referencesToPageCache === null) {
-		referencesToPageCache = {};
+export function getInterlinkedContentToPage(entryId: string) {
+	// Load and aggregate data if interlinkedContentToPageCache is null
+	if (interlinkedContentToPageCache === null) {
+		interlinkedContentToPageCache = {};
 
-		referencesToPageCache = Object.fromEntries(
-			fs.readdirSync(BUILD_FOLDER_PATHS["referencesToPage"]).map((file) => {
+		interlinkedContentToPageCache = Object.fromEntries(
+			fs.readdirSync(BUILD_FOLDER_PATHS["interlinkedContentToPage"]).map((file) => {
 				const pageId = file.replace(".json", "");
 				return [
 					pageId,
 					superjson.parse(
-						fs.readFileSync(path.join(BUILD_FOLDER_PATHS["referencesToPage"], file), "utf-8"),
+						fs.readFileSync(
+							path.join(BUILD_FOLDER_PATHS["interlinkedContentToPage"], file),
+							"utf-8",
+						),
 					),
 				];
 			}),
 		);
 	}
-	// Return the references for the given entryId, or null if not found
-	return referencesToPageCache ? referencesToPageCache[entryId] : null;
+	// Return the interlinked content for the given entryId, or null if not found
+	return interlinkedContentToPageCache ? interlinkedContentToPageCache[entryId] : null;
 }
 
 export const extractTargetBlocks = (blockTypes: string[], blocks: Block[]): Block[] => {
@@ -117,6 +183,8 @@ export const extractTargetBlocks = (blockTypes: string[], blocks: Block[]): Bloc
 
 			if (block.ColumnList && block.ColumnList.Columns) {
 				acc = acc.concat(_extractTargetBlockFromColumns(blockTypes, block.ColumnList.Columns));
+			} else if (block.Tab && block.Tab.Children) {
+				acc = acc.concat(extractTargetBlocks(blockTypes, block.Tab.Children));
 			} else if (block.BulletedListItem && block.BulletedListItem.Children) {
 				acc = acc.concat(extractTargetBlocks(blockTypes, block.BulletedListItem.Children));
 			} else if (block.NumberedListItem && block.NumberedListItem.Children) {
@@ -135,6 +203,8 @@ export const extractTargetBlocks = (blockTypes: string[], blocks: Block[]): Bloc
 				acc = acc.concat(extractTargetBlocks(blockTypes, block.Heading2.Children));
 			} else if (block.Heading3 && block.Heading3.Children) {
 				acc = acc.concat(extractTargetBlocks(blockTypes, block.Heading3.Children));
+			} else if (block.Heading4 && block.Heading4.Children) {
+				acc = acc.concat(extractTargetBlocks(blockTypes, block.Heading4.Children));
 			} else if (block.Quote && block.Quote.Children) {
 				acc = acc.concat(extractTargetBlocks(blockTypes, block.Quote.Children));
 			} else if (block.Callout && block.Callout.Children) {
@@ -161,7 +231,7 @@ const _filterRichTexts = (
 	postId: string,
 	block: Block,
 	rich_texts: RichText[],
-): ReferencesInPage => ({
+): InterlinkedContentInPage => ({
 	block,
 	other_pages:
 		rich_texts.reduce((acc, richText) => {
@@ -198,10 +268,11 @@ const _filterRichTexts = (
 	direct_nonmedia_link: null,
 });
 
-const _extractReferencesInBlock = (postId: string, block: Block): ReferencesInPage => {
-	//MISSING TABLE ROWS
-	// console.debug("here in _extractReferencesInBlock");
-	const rich_texts =
+const _extractInterlinkedContentInBlock = (
+	postId: string,
+	block: Block,
+): InterlinkedContentInPage => {
+	let rich_texts =
 		block.Bookmark?.Caption ||
 		block.BulletedListItem?.RichTexts ||
 		block.Callout?.RichTexts ||
@@ -211,6 +282,7 @@ const _extractReferencesInBlock = (postId: string, block: Block): ReferencesInPa
 		block.Heading1?.RichTexts ||
 		block.Heading2?.RichTexts ||
 		block.Heading3?.RichTexts ||
+		block.Heading4?.RichTexts ||
 		block.LinkPreview?.Caption ||
 		block.NAudio?.Caption ||
 		block.NImage?.Caption ||
@@ -221,19 +293,32 @@ const _extractReferencesInBlock = (postId: string, block: Block): ReferencesInPa
 		block.Toggle?.RichTexts ||
 		block.Video?.Caption ||
 		[];
+
+	// Extract RichTexts from table cells
+	if (block.Table?.Rows) {
+		const tableRichTexts: RichText[] = [];
+		block.Table.Rows.forEach((row) => {
+			row.Cells.forEach((cell) => {
+				if (cell.RichTexts && cell.RichTexts.length > 0) {
+					tableRichTexts.push(...cell.RichTexts);
+				}
+			});
+		});
+		// Combine table RichTexts with existing rich_texts
+		if (tableRichTexts.length > 0) {
+			rich_texts = [...rich_texts, ...tableRichTexts];
+		}
+	}
+
 	let filteredRichText = _filterRichTexts(postId, block, rich_texts);
 	let direct_media_link =
 		block.NAudio?.External?.Url ||
-		block.NAudio?.File?.OptimizedUrl ||
 		block.NAudio?.File?.Url ||
 		block.File?.External?.Url ||
-		block.File?.File?.OptimizedUrl ||
 		block.File?.File?.Url ||
 		block.NImage?.External?.Url ||
-		block.NImage?.File?.OptimizedUrl ||
 		block.NImage?.File?.Url ||
 		block.Video?.External?.Url ||
-		block.Video?.File?.OptimizedUrl ||
 		block.Video?.File?.Url;
 	let direct_nonmedia_link = block.Embed?.Url || block.LinkPreview?.Url || block.Bookmark?.Url;
 	let link_to_pageid =
@@ -246,75 +331,68 @@ const _extractReferencesInBlock = (postId: string, block: Block): ReferencesInPa
 	return filteredRichText;
 };
 
-export const extractReferencesInPage = (postId: string, blocks: Block[]): ReferencesInPage[] => {
-	// console.debug("here in extractReferencesInPage");
-	return blocks
-		.reduce((acc: ReferencesInPage[], block) => {
-			acc.push(_extractReferencesInBlock(postId, block));
-
-			if (block.ColumnList && block.ColumnList.Columns) {
-				acc = acc.concat(_extractReferencesFromColumns(postId, block.ColumnList.Columns));
-			} else if (block.BulletedListItem && block.BulletedListItem.Children) {
-				acc = acc.concat(extractReferencesInPage(postId, block.BulletedListItem.Children));
-			} else if (block.NumberedListItem && block.NumberedListItem.Children) {
-				acc = acc.concat(extractReferencesInPage(postId, block.NumberedListItem.Children));
-			} else if (block.ToDo && block.ToDo.Children) {
-				acc = acc.concat(extractReferencesInPage(postId, block.ToDo.Children));
-			} else if (block.SyncedBlock && block.SyncedBlock.Children) {
-				acc = acc.concat(extractReferencesInPage(postId, block.SyncedBlock.Children));
-			} else if (block.Toggle && block.Toggle.Children) {
-				acc = acc.concat(extractReferencesInPage(postId, block.Toggle.Children));
-			} else if (block.Paragraph && block.Paragraph.Children) {
-				acc = acc.concat(extractReferencesInPage(postId, block.Paragraph.Children));
-			} else if (block.Heading1 && block.Heading1.Children) {
-				acc = acc.concat(extractReferencesInPage(postId, block.Heading1.Children));
-			} else if (block.Heading2 && block.Heading2.Children) {
-				acc = acc.concat(extractReferencesInPage(postId, block.Heading2.Children));
-			} else if (block.Heading3 && block.Heading3.Children) {
-				acc = acc.concat(extractReferencesInPage(postId, block.Heading3.Children));
-			} else if (block.Quote && block.Quote.Children) {
-				acc = acc.concat(extractReferencesInPage(postId, block.Quote.Children));
-			} else if (block.Callout && block.Callout.Children) {
-				acc = acc.concat(extractReferencesInPage(postId, block.Callout.Children));
-			}
-
-			return acc;
-		}, [])
-		.flat();
-};
-
-const _extractReferencesFromColumns = (postId: string, columns: Column[]): ReferencesInPage[] => {
-	return columns
-		.reduce((acc: ReferencesInPage[], column) => {
-			if (column.Children) {
-				acc = acc.concat(extractReferencesInPage(postId, column.Children));
-			}
-			return acc;
-		}, [])
-		.flat();
-};
-
 export const buildURLToHTMLMap = async (urls: URL[]): Promise<{ [key: string]: string }> => {
-	const htmls: string[] = await Promise.all(
-		urls.map(async (url: URL) => {
-			const controller = new AbortController();
-			const timeout = setTimeout(() => {
-				controller.abort();
-			}, 10000);
+	const htmls: string[] = [];
+	const CONCURRENCY_LIMIT = 5;
 
-			return fetch(url.toString(), { signal: controller.signal })
-				.then((res) => {
-					return res.text();
-				})
-				.catch(() => {
-					console.log("Request was aborted");
+	for (let i = 0; i < urls.length; i += CONCURRENCY_LIMIT) {
+		const batch = urls.slice(i, i + CONCURRENCY_LIMIT);
+		const batchResults = await Promise.all(
+			batch.map(async (url: URL) => {
+				const controller = new AbortController();
+				const timeout = setTimeout(() => {
+					controller.abort();
+				}, 10000); // Timeout 10s
+
+				try {
+					const response = await fetch(url.toString(), { signal: controller.signal });
+					if (!response.body) return "";
+
+					// Stream the response and stop when we find </head> or <body
+					const reader = response.body.getReader();
+					const decoder = new TextDecoder();
+					let html = "";
+					let done = false;
+
+					try {
+						while (!done) {
+							const { value, done: streamDone } = await reader.read();
+							if (streamDone) {
+								done = true;
+								break;
+							}
+
+							const chunk = decoder.decode(value, { stream: true });
+							html += chunk;
+
+							// Check for end of head or start of body to stop early
+							if (html.includes("</head>") || html.includes("<body")) {
+								done = true;
+								break;
+							}
+
+							// Safety cap (1MB) to prevent massive memory usage if tags are missing
+							if (html.length > 1024 * 1024) {
+								done = true;
+								break;
+							}
+						}
+					} finally {
+						// Cancel the rest of the stream to save bandwidth
+						reader.cancel();
+					}
+
+					return html;
+				} catch (e) {
+					console.log(`Failed to fetch ${url.toString()}:`, e instanceof Error ? e.message : e);
 					return "";
-				})
-				.finally(() => {
+				} finally {
 					clearTimeout(timeout);
-				});
-		}),
-	);
+				}
+			}),
+		);
+		htmls.push(...batchResults);
+	}
 
 	return urls.reduce((acc: { [key: string]: string }, url, i) => {
 		if (htmls[i]) {
@@ -329,6 +407,16 @@ export const getNavLink = (nav: string) => {
 		return path.join(BASE_PATH, "") + "/";
 	}
 	return path.join(BASE_PATH, nav);
+};
+
+export const normalizeNavPath = (inputPath: string, basePath = import.meta.env.BASE_URL) => {
+	const base = (basePath || "").replace(/\/+$/, "");
+	let out = inputPath || "/";
+	if (base && out.startsWith(base)) {
+		out = out.slice(base.length) || "/";
+	}
+	out = out.replace(/\/+$/, "");
+	return out === "" ? "/" : out;
 };
 
 export const getAnchorLinkAndBlock = async (
@@ -354,12 +442,31 @@ export const getAnchorLinkAndBlock = async (
 	if (post && richText.InternalHref?.BlockId) {
 		block_linked = await getBlock(richText.InternalHref?.BlockId);
 		block_linked_id = block_linked ? block_linked.Id : null;
-		if (block_linked && (block_linked.Heading1 || block_linked.Heading2 || block_linked.Heading3)) {
-			block_linked_id = buildHeadingId(
-				block_linked.Heading1 || block_linked.Heading2 || block_linked.Heading3,
-			);
+		if (
+			block_linked &&
+			(block_linked.Heading1 ||
+				block_linked.Heading2 ||
+				block_linked.Heading3 ||
+				block_linked.Heading4)
+		) {
+			const heading =
+				block_linked.Heading1 ||
+				block_linked.Heading2 ||
+				block_linked.Heading3 ||
+				block_linked.Heading4;
+			if (heading) block_linked_id = buildHeadingId(heading);
 			isBlockLinkedHeading = true;
 		}
+	}
+
+	if (post && isExternalPost(post)) {
+		return {
+			hreflink: post.ExternalUrl as string,
+			blocklinked: block_linked,
+			conditionmatch: "external_post",
+			post,
+			isBlockLinkedHeading,
+		};
 	}
 
 	if (richText.Href && !richText.Mention && !richText.InternalHref) {
@@ -371,24 +478,27 @@ export const getAnchorLinkAndBlock = async (
 			isBlockLinkedHeading,
 		};
 	} else if (block_linked_id && post && post.PageId === track_current_page_id) {
+		const baseHref = resolvePostHref(post);
 		return {
-			hreflink: `${getPostLink(post.Slug, post.Collection === MENU_PAGES_COLLECTION)}#${block_linked_id}`,
+			hreflink: `${baseHref}#${block_linked_id}`,
 			blocklinked: block_linked,
 			conditionmatch: "block_current_page",
 			post: post,
 			isBlockLinkedHeading,
 		};
 	} else if (block_linked_id && post) {
+		const baseHref = resolvePostHref(post);
 		return {
-			hreflink: `${getPostLink(post.Slug, post.Collection === MENU_PAGES_COLLECTION)}#${block_linked_id}`,
+			hreflink: `${baseHref}#${block_linked_id}`,
 			blocklinked: block_linked,
 			conditionmatch: "block_other_page",
 			post: post,
 			isBlockLinkedHeading,
 		};
 	} else if (post) {
+		const baseHref = resolvePostHref(post);
 		return {
-			hreflink: getPostLink(post.Slug, post.Collection === MENU_PAGES_COLLECTION),
+			hreflink: baseHref,
 			blocklinked: block_linked,
 			conditionmatch: "other_page",
 			post: post,
@@ -404,7 +514,7 @@ export const getAnchorLinkAndBlock = async (
 	};
 };
 
-export const getReferenceLink = async (
+export const getInterlinkedContentLink = async (
 	current_page_id: string,
 	linkedPageId?: string,
 	block_linked?: Block,
@@ -417,11 +527,24 @@ export const getReferenceLink = async (
 			: null;
 	let block_linked_id = block_linked ? block_linked.Id : null;
 	if (linkedpost || currentOverride) {
-		if (block_linked && (block_linked.Heading1 || block_linked.Heading2 || block_linked.Heading3)) {
-			block_linked_id = buildHeadingId(
-				block_linked.Heading1 || block_linked.Heading2 || block_linked.Heading3,
-			);
+		if (
+			block_linked &&
+			(block_linked.Heading1 ||
+				block_linked.Heading2 ||
+				block_linked.Heading3 ||
+				block_linked.Heading4)
+		) {
+			const heading =
+				block_linked.Heading1 ||
+				block_linked.Heading2 ||
+				block_linked.Heading3 ||
+				block_linked.Heading4;
+			if (heading) block_linked_id = buildHeadingId(heading);
 		}
+	}
+
+	if (linkedpost && isExternalPost(linkedpost)) {
+		return [linkedpost.ExternalUrl as string, linkedpost];
 	}
 
 	if (
@@ -430,15 +553,10 @@ export const getReferenceLink = async (
 	) {
 		return [`#${block_linked_id}`, linkedpost];
 	} else if (block_linked_id && linkedpost) {
-		return [
-			`${getPostLink(linkedpost.Slug, linkedpost.Collection === MENU_PAGES_COLLECTION)}#${block_linked_id}`,
-			linkedpost,
-		];
+		const baseHref = resolvePostHref(linkedpost);
+		return [`${baseHref}#${block_linked_id}`, linkedpost];
 	} else if (linkedpost) {
-		return [
-			getPostLink(linkedpost.Slug, linkedpost.Collection === MENU_PAGES_COLLECTION),
-			linkedpost,
-		];
+		return [resolvePostHref(linkedpost), linkedpost];
 	}
 	return [null, null];
 };
@@ -453,17 +571,38 @@ export const getPostLink = (slug: string, isRoot: boolean = false): string => {
 	return linkedPath.endsWith("/") ? linkedPath : `${linkedPath}/`; // Ensure trailing slash
 };
 
-export const buildHeadingId = (heading: Heading1 | Heading2 | Heading3) => {
-	return slugify(
-		heading.RichTexts.map((richText: RichText) => {
-			if (!richText.Text) {
-				return "";
-			}
-			return richText.Text.Content;
-		})
-			.join()
-			.trim(),
-	);
+export const buildHeadingId = (heading: Heading1 | Heading2 | Heading3 | Heading4) => {
+	return slugify(joinPlainText(heading.RichTexts).trim());
+};
+
+export const hasExternalContentDescriptor = (post?: Post | null): boolean => {
+	return !!post?.ExternalContent;
+};
+
+export const isExternalPost = (post?: Post | null): boolean => {
+	if (!post) return false;
+	if (hasExternalContentDescriptor(post)) {
+		return false;
+	}
+	return post.IsExternal === true && !!post.ExternalUrl;
+};
+
+export const resolvePostHref = (
+	post: Post,
+	options?: {
+		forceIsRoot?: boolean;
+	},
+): string => {
+	if (isExternalPost(post)) {
+		return post.ExternalUrl as string;
+	}
+
+	const isRoot =
+		typeof options?.forceIsRoot === "boolean"
+			? options.forceIsRoot
+			: post.Collection === MENU_PAGES_COLLECTION;
+
+	return getPostLink(post.Slug, isRoot);
 };
 
 export const isTweetURL = (url: URL): boolean => {
@@ -594,7 +733,7 @@ export const parseYouTubeVideoIdTitle = async (url: URL): Promise<[string, strin
 	let id = "";
 
 	if (url.hostname === "youtu.be") {
-		id = url.pathname.split("/")[1];
+		id = url.pathname.split("/")[1] || "";
 	} else if (url.pathname === "/watch") {
 		id = url.searchParams.get("v") || "";
 	} else {
@@ -605,7 +744,7 @@ export const parseYouTubeVideoIdTitle = async (url: URL): Promise<[string, strin
 		}
 
 		if (elements[1] === "v" || elements[1] === "embed" || elements[1] === "live") {
-			id = elements[2];
+			id = elements[2] || "";
 		}
 	}
 
@@ -683,3 +822,273 @@ export const isEmbeddableURL = async (url: URL): Promise<boolean> => {
 		return false;
 	}
 };
+
+/**
+ * Load cached HTML for a post
+ * @param postSlug - The slug of the post
+ * @param shouldUseCache - Whether to attempt to load cache
+ * @returns The cached HTML string or empty string if not found
+ */
+export async function loadCachedHtml(postSlug: string, shouldUseCache: boolean): Promise<string> {
+	if (!shouldUseCache) return "";
+
+	const cacheFilePath = path.join(BUILD_FOLDER_PATHS["blocksHtmlCache"], `${postSlug}.html`);
+	try {
+		return await fs.promises.readFile(cacheFilePath, "utf-8");
+	} catch (e) {
+		return ""; // Fallback to rendering if cache read fails
+	}
+}
+
+/**
+ * Load cached headings for a post
+ * @param postSlug - The slug of the post
+ * @param postLastUpdatedBeforeLastBuild - Whether the post was updated before last build
+ * @returns The cached headings or null if not found
+ */
+export async function loadCachedHeadings(
+	postSlug: string,
+	postLastUpdatedBeforeLastBuild: boolean,
+): Promise<any | null> {
+	if (!postLastUpdatedBeforeLastBuild) return null;
+
+	const headingsCacheDir = BUILD_FOLDER_PATHS["headingsCache"];
+	const headingsCacheFile = path.join(headingsCacheDir, `${postSlug}.json`);
+
+	try {
+		const headingsData = await fs.promises.readFile(headingsCacheFile, "utf-8");
+		return superjson.parse(headingsData);
+	} catch (e) {
+		return null; // Fallback to building headings if cache read fails
+	}
+}
+
+/**
+ * Save headings to cache
+ * @param postSlug - The slug of the post
+ * @param headings - The headings to save
+ */
+export async function saveCachedHeadings(postSlug: string, headings: any): Promise<void> {
+	const headingsCacheDir = BUILD_FOLDER_PATHS["headingsCache"];
+	const headingsCacheFile = path.join(headingsCacheDir, `${postSlug}.json`);
+
+	try {
+		await fs.promises.writeFile(headingsCacheFile, superjson.stringify(headings), "utf-8");
+	} catch (e) {
+		console.error("Error saving headings cache:", e);
+	}
+}
+
+// ============================================================================
+// Unified Page Content Extraction
+// ============================================================================
+
+/**
+ * Unified Page Content Extraction System
+ *
+ * This combines footnotes, citations, and interlinked content extraction
+ * into a SINGLE tree traversal for optimal performance.
+ *
+ * Instead of:
+ * - extractFootnotesInPage (full tree traversal)
+ * - extractCitationsInPage (full tree traversal)
+ * - extractInterlinkedContentInPage (full tree traversal)
+ *
+ * We now do ONE traversal that collects all three types of content.
+ */
+
+export interface PageContentExtractionResult {
+	footnotes: Footnote[];
+	citations: Citation[];
+	interlinkedContent: InterlinkedContentInPage[];
+}
+
+/**
+ * Unified extraction function that traverses the block tree ONCE
+ * and collects footnotes, citations, and interlinked content
+ */
+export function extractPageContent(
+	postId: string,
+	blocks: Block[],
+	options: {
+		extractFootnotes: boolean;
+		extractCitations: boolean;
+		extractInterlinkedContent: boolean;
+	},
+): PageContentExtractionResult {
+	const allFootnotes: Footnote[] = [];
+	const citationMap = new Map<string, Citation>();
+	const allInterlinkedContent: InterlinkedContentInPage[] = [];
+
+	// Tracking for footnotes
+	let footnoteIndex = 0;
+
+	// Tracking for citations
+	const keyToIndex = new Map<string, number>();
+	const keyToMainContentIndex = new Map<string, number>(); // Track first appearance in main content
+	let firstAppearanceCounter = 0;
+	let firstAppearanceInMainContentCounter = 0;
+	/**
+	 * Recursive function that processes a single block and all its children
+	 */
+	function processBlock(block: Block): void {
+		// 1. Extract and process footnotes
+		if (options.extractFootnotes && block.Footnotes && block.Footnotes.length > 0) {
+			block.Footnotes.forEach((footnote) => {
+				// Assign sequential index if not already assigned
+				if (!footnote.Index) {
+					footnote.Index = ++footnoteIndex;
+				}
+				// Store the block ID where this marker appears (for back-links)
+				if (!footnote.SourceBlockId) {
+					footnote.SourceBlockId = block.Id;
+					footnote.SourceBlock = block;
+				}
+				allFootnotes.push(footnote);
+			});
+		}
+
+		// 2. Extract and process citations
+		if (options.extractCitations && block.Citations && block.Citations.length > 0) {
+			block.Citations.forEach((citation) => {
+				const key = citation.Key;
+
+				if (keyToIndex.has(key)) {
+					// Already seen this key - reuse existing index
+					const existingIndex = keyToIndex.get(key)!;
+					citation.Index = existingIndex; // MUTATE directly
+					// DO NOT overwrite FirstAppearanceIndex - it should remain undefined for subsequent occurrences
+					// This allows CitationMarker.astro to distinguish first vs subsequent occurrences
+
+					// Check if this is the first time seeing this key in main content (not in footnote)
+					if (!keyToMainContentIndex.has(key) && !citation.IsInFootnoteContent) {
+						firstAppearanceInMainContentCounter++;
+						citation.FirstAppearanceInMainContentIndex = firstAppearanceInMainContentCounter;
+						keyToMainContentIndex.set(key, firstAppearanceInMainContentCounter);
+
+						// Also update the existing citation in the map
+						const existing = citationMap.get(key)!;
+						existing.FirstAppearanceInMainContentIndex = firstAppearanceInMainContentCounter;
+					}
+
+					// Add this block ID and Block object to the citation's SourceBlockIds and SourceBlocks
+					const existing = citationMap.get(key)!;
+					if (!existing.SourceBlockIds.includes(block.Id)) {
+						existing.SourceBlockIds.push(block.Id);
+						if (!existing.SourceBlocks) {
+							existing.SourceBlocks = [];
+						}
+						existing.SourceBlocks.push(block);
+					}
+				} else {
+					// First time seeing this key - assign new index
+					firstAppearanceCounter++;
+					const index =
+						BIBLIOGRAPHY_STYLE === "simplified-ieee" ? firstAppearanceCounter : undefined;
+
+					// MUTATE the citation directly
+					citation.Index = index;
+					citation.FirstAppearanceIndex = firstAppearanceCounter;
+					citation.SourceBlockIds = [block.Id];
+					citation.SourceBlocks = [block];
+
+					// Also track FirstAppearanceInMainContentIndex if this is in main content
+					if (!citation.IsInFootnoteContent) {
+						firstAppearanceInMainContentCounter++;
+						citation.FirstAppearanceInMainContentIndex = firstAppearanceInMainContentCounter;
+						keyToMainContentIndex.set(key, firstAppearanceInMainContentCounter);
+					}
+
+					// Track this key's index
+					if (index !== undefined) {
+						keyToIndex.set(key, index);
+					}
+
+					// Add to map for bibliography
+					citationMap.set(key, citation);
+				}
+			});
+		}
+
+		// 3. Extract interlinked content
+		if (options.extractInterlinkedContent) {
+			const interlinkedContent = _extractInterlinkedContentInBlock(postId, block);
+			allInterlinkedContent.push(interlinkedContent);
+		}
+
+		// 4. Recursively process children
+		const childBlocks: Block[] = [];
+
+		// Collect all possible children
+		if (block.Tab?.Children) childBlocks.push(...block.Tab.Children);
+		if (block.Paragraph?.Children) childBlocks.push(...block.Paragraph.Children);
+		if (block.Heading1?.Children) childBlocks.push(...block.Heading1.Children);
+		if (block.Heading2?.Children) childBlocks.push(...block.Heading2.Children);
+		if (block.Heading3?.Children) childBlocks.push(...block.Heading3.Children);
+		if (block.Heading4?.Children) childBlocks.push(...block.Heading4.Children);
+		if (block.Quote?.Children) childBlocks.push(...block.Quote.Children);
+		if (block.Callout?.Children) childBlocks.push(...block.Callout.Children);
+		if (block.Toggle?.Children) childBlocks.push(...block.Toggle.Children);
+		if (block.BulletedListItem?.Children) childBlocks.push(...block.BulletedListItem.Children);
+		if (block.NumberedListItem?.Children) childBlocks.push(...block.NumberedListItem.Children);
+		if (block.ToDo?.Children) childBlocks.push(...block.ToDo.Children);
+		if (block.SyncedBlock?.Children) childBlocks.push(...block.SyncedBlock.Children);
+		const tableChildren = (block.Table as (typeof block.Table & { Children?: Block[] }) | undefined)
+			?.Children;
+		if (tableChildren) childBlocks.push(...tableChildren);
+
+		// Recurse into children
+		childBlocks.forEach(processBlock);
+
+		// Handle column lists specially
+		if (block.ColumnList?.Columns) {
+			block.ColumnList.Columns.forEach((column) => {
+				if (column.Children) {
+					column.Children.forEach(processBlock);
+				}
+			});
+		}
+
+		// Also process footnote content blocks (for footnotes, interlinked content, etc.)
+		if (block.Footnotes) {
+			block.Footnotes.forEach((footnote) => {
+				if (footnote.Content.Type === "blocks" && footnote.Content.Blocks) {
+					footnote.Content.Blocks.forEach(processBlock);
+				}
+			});
+		}
+	}
+
+	// Process all top-level blocks
+	blocks.forEach(processBlock);
+
+	// Post-processing for footnotes
+	let footnotes: Footnote[] = [];
+	if (options.extractFootnotes) {
+		// Remove duplicates based on Marker
+		const uniqueFootnotes = Array.from(new Map(allFootnotes.map((fn) => [fn.Marker, fn])).values());
+
+		// Sort by Index
+		uniqueFootnotes.sort((a, b) => {
+			if (a.Index && b.Index) {
+				return a.Index - b.Index;
+			}
+			return a.Marker.localeCompare(b.Marker);
+		});
+
+		footnotes = uniqueFootnotes;
+	}
+
+	// Post-processing for citations
+	let citations: Citation[] = [];
+	if (options.extractCitations) {
+		citations = Array.from(citationMap.values());
+		citations = prepareBibliography(citations);
+	}
+
+	return {
+		footnotes,
+		citations,
+		interlinkedContent: allInterlinkedContent,
+	};
+}

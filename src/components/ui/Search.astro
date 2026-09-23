@@ -1,0 +1,319 @@
+---
+import Icon from "@/components/ui/Icon.astro";
+import noSearchMatchesImage from "@/assets/no-search-matches-cat-in-bag.svg";
+import { getAllPosts } from "@/lib/notion/client";
+import { resolvePostHref, getNotionImage } from "@/lib/blog-helpers";
+import { getImage, Image } from "astro:assets";
+
+const baseUrl = import.meta.env.BASE_URL;
+const pagefindBundlePath = `${baseUrl.replace(/\/$/, "")}/pagefind/`;
+const gotoIndexUrl = `${baseUrl.replace(/\/$/, "")}/search-pages.json`;
+const searchPlaceholder = "Tip: Press ⌘K or ^K to open search, or / to go to a page";
+const compactSearchPlaceholder = "Search, or / to go to a page";
+const pinnedPost = (await getAllPosts()).find((post) => post.Pinned && !post.Slug.startsWith("_"));
+const pinnedIcon = pinnedPost?.Icon;
+const pinnedIconEmoji = pinnedIcon && "Emoji" in pinnedIcon ? pinnedIcon.Emoji : "";
+const pinnedIconUrl = pinnedIcon && "Url" in pinnedIcon ? pinnedIcon.Url : "";
+// Raw raster imports are not emitted to dist.
+let pinnedIconImage = "";
+
+try {
+	const pinnedIconDownloaded = pinnedIconUrl ? await getNotionImage(new URL(pinnedIconUrl)) : null;
+	if (pinnedIconDownloaded) {
+		pinnedIconImage = (await getImage({ src: pinnedIconDownloaded, width: 48 })).src;
+	}
+} catch {}
+---
+
+<site-search
+	id="search"
+	class="ms-auto"
+	data-search-placeholder={searchPlaceholder}
+	data-compact-search-placeholder={compactSearchPlaceholder}
+>
+	{
+		import.meta.env.DEV ? (
+			<button type="button" disabled class="search-btn" aria-label="Search unavailable in dev">
+				<span aria-hidden="true">⌕</span>
+			</button>
+		) : (
+			<>
+				<pagefind-config
+					instance="webtrotion-search"
+					bundle-path={pagefindBundlePath}
+					base-url={baseUrl}
+					excerpt-length="60"
+					highlight-param="highlight"
+					faceted
+				/>
+				<button type="button" disabled class="search-btn" aria-label="Open search">
+					<Icon class="h-7 w-7" name="search" />
+				</button>
+				<dialog class="search-loading-modal" aria-label="Search" aria-busy="true">
+					<div class="search-loading-header">
+						<div class="search-loading-input" aria-hidden="true">
+							<Icon class="search-loading-input-icon" name="search" />
+							<span class="search-loading-input-text">{searchPlaceholder}</span>
+						</div>
+					</div>
+					<div class="search-loading-body">
+						<span class="search-loading-spinner" role="status" aria-label="Loading search" />
+					</div>
+				</dialog>
+				<pagefind-modal id="webtrotion-search-modal" instance="webtrotion-search">
+					<pagefind-modal-header>
+						<pagefind-input
+							instance="webtrotion-search"
+							placeholder={searchPlaceholder}
+							debounce="150"
+						/>
+					</pagefind-modal-header>
+					<pagefind-modal-body>
+						<div class="webtrotion-search-shell">
+							<div class="webtrotion-search-filters" aria-label="Search filters">
+								<span class="webtrotion-search-filters-icon" aria-hidden="true">
+									<Icon name="filter-variant" aria-hidden="true" focusable="false" />
+								</span>
+								<pagefind-filter-dropdown
+									instance="webtrotion-search"
+									filter="collections"
+									label="Collections"
+									sort="count-desc"
+									hide-clear
+								/>
+								<pagefind-filter-dropdown
+									instance="webtrotion-search"
+									filter="tags"
+									label="Tags"
+									sort="count-desc"
+									hide-clear
+								/>
+							</div>
+							<div class="webtrotion-search-content">
+								<section class="webtrotion-search-results-pane" aria-label="Search results">
+									<webtrotion-search-navigation
+										aria-label="Navigate site pages"
+										data-goto-index-url={gotoIndexUrl}
+										data-pinned-title={pinnedPost?.Title}
+										data-pinned-url={pinnedPost ? resolvePostHref(pinnedPost) : undefined}
+										data-pinned-collection={pinnedPost?.Collection}
+										data-pinned-excerpt={pinnedPost?.Excerpt}
+										data-pinned-icon-emoji={pinnedIconEmoji || undefined}
+										data-pinned-icon-image={pinnedIconImage || undefined}
+									/>
+									<p
+										class="pagefind-summary pf-summary webtrotion-search-summary"
+										aria-live="polite"
+									>
+										<span class="webtrotion-search-summary-count" />{" "}
+										<span class="webtrotion-search-summary-label" />
+									</p>
+									<webtrotion-search-results instance="webtrotion-search" max-sub-results="3" />
+									<div class="webtrotion-search-empty-state" hidden aria-live="polite">
+										<Image
+											class="webtrotion-search-empty-state-image"
+											loading="lazy"
+											src={noSearchMatchesImage}
+											alt=""
+										/>
+										<div class="webtrotion-search-empty-state-copy">
+											<p class="webtrotion-search-empty-state-title">No results found</p>
+											<p>Try a different term or clear a filter to see more.</p>
+										</div>
+									</div>
+								</section>
+								<div class="webtrotion-search-preview-slot">
+									<button
+										type="button"
+										class="webtrotion-search-preview-handle"
+										aria-expanded="true"
+										aria-controls="webtrotion-search-preview-panel"
+										tabindex="-1"
+									>
+										<span class="webtrotion-search-preview-handle-label">Preview</span>
+										<Icon
+											class="webtrotion-search-preview-handle-chevron"
+											name="chevron-down"
+											aria-hidden="true"
+											focusable="false"
+										/>
+									</button>
+									<webtrotion-search-preview
+										id="webtrotion-search-preview-panel"
+										instance="webtrotion-search"
+									/>
+								</div>
+							</div>
+						</div>
+					</pagefind-modal-body>
+					<pagefind-modal-footer>
+						<div class="webtrotion-search-navigation-hints" aria-label="Keyboard shortcuts">
+							<span>
+								<>
+									<kbd class="webtrotion-search-arrow-key">▲</kbd>
+									<kbd class="webtrotion-search-arrow-key">▼</kbd>
+								</>{" "}
+								Navigate
+							</span>
+							<span>
+								<kbd class="webtrotion-search-arrow-key">▶</kbd> Matches
+							</span>
+							<span>
+								<kbd class="webtrotion-search-symbol-key">⏎</kbd> Open
+							</span>
+							<span>
+								<kbd class="webtrotion-search-platform-modifier">⌘</kbd>
+								<kbd class="webtrotion-search-symbol-key">/</kbd> Search
+							</span>
+							<span>
+								<>
+									<kbd class="webtrotion-search-platform-modifier">⌘</kbd>
+									<kbd class="webtrotion-search-symbol-key">⌫</kbd>
+								</>{" "}
+								Clear
+							</span>
+							<span>
+								<kbd class="webtrotion-search-symbol-key">Esc</kbd> Close
+							</span>
+						</div>
+					</pagefind-modal-footer>
+				</pagefind-modal>
+			</>
+		)
+	}
+</site-search>
+
+<script>
+	class SiteSearch extends HTMLElement {
+		private runtimePromise: Promise<import("./search-runtime").SearchRuntime> | null = null;
+		private runtime: import("./search-runtime").SearchRuntime | null = null;
+		private openBtn: HTMLButtonElement | null = null;
+		private loadingModal: HTMLDialogElement | null = null;
+		private pendingOpen = false;
+
+		connectedCallback() {
+			if (import.meta.env.DEV) return;
+
+			const isApplePlatform = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+			for (const modifier of this.querySelectorAll<HTMLElement>(
+				".webtrotion-search-platform-modifier",
+			)) {
+				modifier.textContent = isApplePlatform ? "⌘" : "Ctrl";
+				modifier.setAttribute("aria-label", isApplePlatform ? "Command" : "Control");
+			}
+
+			this.openBtn = this.querySelector<HTMLButtonElement>(".search-btn");
+			this.loadingModal = this.querySelector<HTMLDialogElement>(".search-loading-modal");
+			this.loadingModal?.addEventListener("close", this.onLoadingClose);
+			if (this.openBtn) {
+				this.openBtn.disabled = false;
+				this.openBtn.addEventListener("pointerenter", this.prefetch);
+				this.openBtn.addEventListener("focus", this.prefetch);
+				this.openBtn.addEventListener("click", this.onClick);
+			}
+			document.addEventListener("keydown", this.onKeydown);
+
+			const params = new URLSearchParams(window.location.search);
+			const hasDeepLink =
+				params.has("q") ||
+				params.has("collections") ||
+				params.has("collection") ||
+				params.has("tags") ||
+				params.has("tag");
+			if (hasDeepLink) this.openSearch(true);
+		}
+
+		disconnectedCallback() {
+			document.removeEventListener("keydown", this.onKeydown);
+		}
+
+		private prefetch = () => {
+			void this.load();
+		};
+
+		private onClick = (event: Event) => {
+			event.preventDefault();
+			this.openSearch(false);
+		};
+
+		private onKeydown = (event: KeyboardEvent) => {
+			if (event.defaultPrevented) return;
+
+			const key = event.key.toLowerCase();
+			const isShortcutK = (event.metaKey || event.ctrlKey) && !event.altKey && key === "k";
+			if (!isShortcutK) return;
+
+			event.preventDefault();
+			this.openSearch(false);
+		};
+
+		private onLoadingClose = () => {
+			this.pendingOpen = false;
+		};
+
+		private openSearch(fromUrl: boolean) {
+			this.updateSearchPlaceholder();
+			if (this.runtime) {
+				if (fromUrl) this.runtime.openFromUrl();
+				else this.runtime.open();
+				return;
+			}
+
+			// Show a loader only for a cold runtime import.
+			this.pendingOpen = true;
+			const placeholderTimer = window.setTimeout(() => {
+				if (this.pendingOpen && this.loadingModal && !this.loadingModal.open) {
+					try {
+						this.loadingModal.showModal();
+					} catch {}
+				}
+			}, 120);
+
+			void this.load().then((runtime) => {
+				window.clearTimeout(placeholderTimer);
+				if (!this.pendingOpen) return; // dismissed before it was ready
+				this.pendingOpen = false;
+				const handoff = this.loadingModal?.open ?? false;
+				if (handoff) {
+					// Keep the placeholder-to-modal hand-off seamless.
+					this.dataset.searchHandoff = "";
+					this.loadingModal?.close();
+				}
+				if (fromUrl) runtime.openFromUrl();
+				else runtime.open();
+				if (handoff) {
+					requestAnimationFrame(() =>
+						requestAnimationFrame(() => delete this.dataset.searchHandoff),
+					);
+				}
+			});
+		}
+
+		private updateSearchPlaceholder() {
+			const placeholder = window.matchMedia("(max-width: 640px)").matches
+				? this.dataset.compactSearchPlaceholder
+				: this.dataset.searchPlaceholder;
+			if (!placeholder) return;
+			this.querySelector("pagefind-input")?.setAttribute("placeholder", placeholder);
+			const loadingText = this.querySelector<HTMLElement>(".search-loading-input-text");
+			if (loadingText) loadingText.textContent = placeholder;
+		}
+
+		private load() {
+			if (!this.runtimePromise) {
+				this.runtimePromise = import("./search-runtime").then(async (module) => {
+					const runtime = module.createSearchRuntime(this);
+					// Avoid a flash of unstyled search UI.
+					await module.stylesReady;
+					this.runtime = runtime;
+					return runtime;
+				});
+			}
+			return this.runtimePromise;
+		}
+	}
+
+	if (!customElements.get("site-search")) {
+		customElements.define("site-search", SiteSearch);
+	}
+</script>

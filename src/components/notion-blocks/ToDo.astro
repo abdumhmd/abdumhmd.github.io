@@ -1,9 +1,9 @@
 ---
 import * as interfaces from "@/lib/interfaces.ts";
-import { getNotionColorToTailwindColor } from "@/lib/style-helpers.ts";
+import { getNotionColorToTailwindColor } from "@/utils/style-helpers";
 import RichText from "@/components/notion-blocks/RichText.astro";
 import NotionBlocks from "@/components/NotionBlocks.astro";
-import Icon from "@/components/Icon.astro";
+import Icon from "@/components/ui/Icon.astro";
 
 export interface Props {
 	block: interfaces.Block;
@@ -12,62 +12,63 @@ export interface Props {
 }
 
 const { block, renderChildren = true, setId = true } = Astro.props;
+const todoItems = block.ListItems!.filter(
+	(item): item is interfaces.Block & { ToDo: NonNullable<interfaces.Block["ToDo"]> } =>
+		item.Type === "to_do",
+);
 ---
 
-<div class="to-do pl-2 leading-7" id={setId ? block.Id : undefined}>
+<div class="to-do" id={setId ? block.Id : undefined}>
 	{
-		block.ListItems.filter((b: interfaces.Block) => b.Type === "to_do").map(
-			(b: interfaces.Block, index) => (
-				<div class="gap-2" id={setId ? b.Id : undefined}>
-					<div
-						class:list={[
-							"flex max-w-full items-start",
-							{
-								[`${getNotionColorToTailwindColor(b.ToDo.Color)} rounded-sm px-1`]:
-									b.ToDo.Color &&
-									!["default", "default_background", "default-background"].includes(b.ToDo.Color),
-							},
-						]}
-					>
-						{/* Flex container for the checkbox and text */}
-						<div class="mt-1 pr-2">
-							{/* Padding for the checkbox */}
+		todoItems.map((b) => (
+			<div class="todo-container" id={setId ? b.Id : undefined}>
+				<div
+					class:list={[
+						"todo-item",
+						{
+							"todo-item-colored":
+								b.ToDo.Color &&
+								!["default", "default_background", "default-background"].includes(b.ToDo.Color),
+							[`${getNotionColorToTailwindColor(b.ToDo.Color)}`]:
+								b.ToDo.Color &&
+								!["default", "default_background", "default-background"].includes(b.ToDo.Color),
+						},
+					]}
+				>
+					{/* Flex container for the checkbox and text */}
+					<div class="todo-checkbox-wrapper">
+						{/* Padding for the checkbox */}
 
-							<Icon
-								class="text-textColor/50 h-5 w-5"
-								name={b.ToDo.Checked ? "checkbox-checked" : "checkbox-unchecked"}
-								aria-label={b.ToDo.Checked ? "checkbox-checked" : "checkbox-unchecked"}
-								focusable="false"
-							/>
-							<span class="rss-only hidden">{b.ToDo.Checked ? "✅" : "⬜"}</span>
-						</div>
-						<div class="min-w-0 flex-1">
-							{/* Container for text, taking up the rest of the space */}
-							{b.ToDo.RichTexts.map((richText: interfaces.RichText) => {
-								if (b.ToDo.Checked) {
-									return (
-										<span class="line-through decoration-slate-500/50">
-											{/* Block element for the text */}
-											<RichText richText={richText} blockID={b.Id} />
-										</span>
-									);
-								}
-								return <RichText richText={richText} blockID={b.Id} />;
-							})}
-						</div>
+						<Icon
+							class="todo-checkbox-icon"
+							name={b.ToDo.Checked ? "checkbox-checked" : "checkbox-unchecked"}
+							aria-label={b.ToDo.Checked ? "checkbox-checked" : "checkbox-unchecked"}
+							focusable="false"
+						/>
+						<span class="rss-only hidden">{b.ToDo.Checked ? "✅" : "⬜"}</span>
 					</div>
-					{b.HasChildren && renderChildren && (
-						<div class="mt-1">
-							{/* Margin for spacing between the to-do and its children */}
-							<NotionBlocks
-								blocks={b.ToDo.Children}
-								renderChildren={renderChildren}
-								setId={setId}
-							/>
-						</div>
-					)}
+					<div class="todo-text">
+						{/* Container for text, taking up the rest of the space */}
+						{b.ToDo.RichTexts.map((richText: interfaces.RichText) => {
+							if (b.ToDo.Checked) {
+								return (
+									<span class="line-through decoration-slate-500/50">
+										{/* Block element for the text */}
+										<RichText richText={richText} blockID={b.Id} block={b} />
+									</span>
+								);
+							}
+							return <RichText richText={richText} blockID={b.Id} block={b} />;
+						})}
+					</div>
 				</div>
-			),
-		)
+				{b.HasChildren && renderChildren && (
+					<div class="mt-1">
+						{/* Margin for spacing between the to-do and its children */}
+						<NotionBlocks blocks={b.ToDo.Children!} renderChildren={renderChildren} setId={setId} />
+					</div>
+				)}
+			</div>
+		))
 	}
 </div>

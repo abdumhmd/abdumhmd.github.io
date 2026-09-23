@@ -1,82 +1,101 @@
 ---
 import PageLayout from "@/layouts/Base.astro";
-import { getAllPages, getAllPosts, getPostContentByPostId, processFileBlocks } from "@/lib/notion/client";
-import { extractTargetBlocks, getNavLink, getReferencesInPage, resetCurrentHeadings, resetFirstImage, setCurrentHeadings, setTrackCurrentPageId } from "@/lib/blog-helpers";
+import { getAllPages, getAllPosts, getPostContentByPostId } from "@/lib/notion/client";
+import {
+	getNavLink,
+	getInterlinkedContentInPage,
+	resetCurrentHeadings,
+	resetFirstImage,
+	setCurrentHeadings,
+	setTrackCurrentPageId,
+} from "@/lib/blog-helpers";
 import NotionBlocks from "@/components/NotionBlocks.astro";
-import type { Post } from "@/lib/interfaces";
+import type { Block } from "@/lib/interfaces";
 import { siteInfo } from "@/siteInfo";
-import { FULL_PREVIEW_COLLECTIONS, HIDE_UNDERSCORE_SLUGS_IN_LISTS, HOME_PAGE_SLUG, RECENT_POSTS_ON_HOME_PAGE, LAST_BUILD_TIME, BUILD_FOLDER_PATHS } from "@/constants";
-import PostPreview from "@/components/blog/PostPreview.astro";
-import Icon from "@/components/Icon.astro";
-import { buildHeadings } from "@/utils";
-import TOC from "@/components/blog/TOC.astro";
+import {
+	FULL_PREVIEW_COLLECTIONS,
+	HIDE_UNDERSCORE_SLUGS_IN_LISTS,
+	HOME_PAGE_SLUG,
+	RECENT_POSTS_ON_HOME_PAGE,
+	LAST_BUILD_TIME,
+	BUILD_FOLDER_PATHS,
+	CITATIONS,
+	BIBTEX_CITATIONS_ENABLED,
+	MARKDOWN_EXPORT_ENABLED,
+	LISTING_VIEW,
+} from "@/constants";
+import PostPreview from "@/components/listing-layout/PostPreview.astro";
+import PostCardGallery from "@/components/listing-layout/PostCardGallery.astro";
+import Icon from "@/components/ui/Icon.astro";
+import { buildHeadings, type TocItem } from "@/utils";
+import TOC from "@/components/auto-added-sections/TOC.astro";
 import fs from "fs/promises";
-import path from "path";
+import path from "node:path";
 import superjson from "superjson";
+import { adjustedFootnotesConfig } from "@/lib/notion/client";
+import FootnotesSection from "@/components/auto-added-sections/FootnotesSection.astro";
+import BibliographySection from "@/components/auto-added-sections/BibliographySection.astro";
+import CopyMarkdownButton from "@/components/auto-added-sections/CopyMarkdownButton.astro";
+import PagefindIconMetadata from "@/components/ui/PagefindIconMetadata.astro";
 
 export async function getStaticPaths() {
-		const pages = await getAllPages();
-		const allPosts = await getAllPosts();
-    const allItems = [...pages, ...allPosts];
-		const allItemsMap = Object.fromEntries(allItems.map(item => [item.PageId, item]));
+	const pages = (await getAllPages()).filter((page) => !page.IsExternal);
+	const allPosts = await getAllPosts();
+	const allItems = [...pages, ...allPosts];
+	const allItemsMap = Object.fromEntries(allItems.map((item) => [item.PageId, item]));
 
-		return pages.map((page) => {
-				const referencesInPage = getReferencesInPage(page.PageId);
-				const linkedPageIdsSet = new Set<string>();
-				if (referencesInPage) {
-						referencesInPage.forEach(ref => {
-								if (ref.link_to_pageid) {
-										linkedPageIdsSet.add(ref.link_to_pageid);
-								}
-								if (ref.other_pages) {
-										ref.other_pages.forEach(richText => {
-												if (richText.InternalHref?.PageId) {
-														linkedPageIdsSet.add(richText.InternalHref.PageId);
-												} else if (richText.Mention?.Page?.PageId) {
-														linkedPageIdsSet.add(richText.Mention.Page.PageId);
-												}
-										});
-								}
-						});
+	return pages.map((page) => {
+		const interlinkedContentInPage = getInterlinkedContentInPage(page.PageId);
+		const linkedPageIdsSet = new Set<string>();
+		if (interlinkedContentInPage) {
+			interlinkedContentInPage.forEach((ref) => {
+				if (ref.link_to_pageid) {
+					linkedPageIdsSet.add(ref.link_to_pageid);
 				}
-				const linkedPageIds = Array.from(linkedPageIdsSet);
+				if (ref.other_pages) {
+					ref.other_pages.forEach((richText) => {
+						if (richText.InternalHref?.PageId) {
+							linkedPageIdsSet.add(richText.InternalHref.PageId);
+						} else if (richText.Mention?.Page?.PageId) {
+							linkedPageIdsSet.add(richText.Mention.Page.PageId);
+						}
+					});
+				}
+			});
+		}
+		const linkedPageIds = Array.from(linkedPageIdsSet);
 
-				const pageLastUpdatedBeforeLastBuild =
-						LAST_BUILD_TIME && page?.LastUpdatedTimeStamp
-								? page.LastUpdatedTimeStamp < LAST_BUILD_TIME
-								: false;
+		const pageLastUpdatedBeforeLastBuild =
+			LAST_BUILD_TIME && page?.LastUpdatedTimeStamp
+				? page.LastUpdatedTimeStamp < LAST_BUILD_TIME
+				: false;
 
-				const linkedPostsUpdated =
-						!LAST_BUILD_TIME ||
-						(linkedPageIds.length > 0 && linkedPageIds.some(pageId => {
-								const linkedItem = allItemsMap[pageId];
-								return linkedItem && linkedItem.LastUpdatedTimeStamp > LAST_BUILD_TIME;
-						}));
+		const linkedPostsUpdated =
+			!LAST_BUILD_TIME ||
+			(linkedPageIds.length > 0 &&
+				linkedPageIds.some((pageId) => {
+					const linkedItem = allItemsMap[pageId];
+					return linkedItem && linkedItem.LastUpdatedTimeStamp > LAST_BUILD_TIME!;
+				}));
 
-				const shouldUseCache = pageLastUpdatedBeforeLastBuild && !linkedPostsUpdated;
+		const shouldUseCache = pageLastUpdatedBeforeLastBuild && !linkedPostsUpdated;
 
-				return {
-						params: { page: page.Slug === HOME_PAGE_SLUG ? undefined : `/${page.Slug}` },
-						props: { page, shouldUseCache, pageLastUpdatedBeforeLastBuild },
-				};
-		});
+		return {
+			params: { page: page.Slug === HOME_PAGE_SLUG ? undefined : `/${page.Slug}` },
+			props: { page, shouldUseCache, pageLastUpdatedBeforeLastBuild },
+		};
+	});
 }
 
-interface Props {
-		page: Post;
-		shouldUseCache: boolean;
-		pageLastUpdatedBeforeLastBuild: boolean;
-}
-
-const { page: slug } = Astro.params;
 const { page, shouldUseCache, pageLastUpdatedBeforeLastBuild } = Astro.props;
 
 resetCurrentHeadings();
 
 let pageFound = true;
-let blocks = null;
-let referencesInPage = null;
-let headings = null;
+let blocks: Block[] = [];
+let headings: TocItem[] = [];
+let footnotesInPage = null;
+let citationsInPage = null;
 
 if (!page) {
 	console.log("Page not found");
@@ -87,12 +106,12 @@ if (!page) {
 let cachedHtml = "";
 // If the page was updated before the last build, try to read the cached HTML.
 if (pageFound && shouldUseCache) {
-		const cacheFilePath = path.join(BUILD_FOLDER_PATHS["blocksHtmlCache"], `${page.Slug}.html`);
-		try {
-				cachedHtml = await fs.readFile(cacheFilePath, "utf-8");
-		} catch (e) {
-				cachedHtml = "";
-		}
+	const cacheFilePath = path.join(BUILD_FOLDER_PATHS["blocksHtmlCache"], `${page.Slug}.html`);
+	try {
+		cachedHtml = await fs.readFile(cacheFilePath, "utf-8");
+	} catch (e) {
+		cachedHtml = "";
+	}
 }
 
 // --- Headings Cache ---
@@ -103,134 +122,128 @@ const headingsCacheFile = path.join(headingsCacheDir, `${page.Slug}.json`);
 if (pageFound && pageLastUpdatedBeforeLastBuild) {
 	try {
 		const headingsData = await fs.readFile(headingsCacheFile, "utf-8");
-		cachedHeadings = superjson.parse(headingsData);
+		cachedHeadings = superjson.parse<TocItem[]>(headingsData);
 	} catch (e) {
 		cachedHeadings = null;
 	}
 }
 
 if (pageFound) {
-		const result = await getPostContentByPostId(page);
-		blocks = result.blocks;
-		referencesInPage = result.referencesInPage;
+	const result = await getPostContentByPostId(page);
+	blocks = result.blocks;
+	footnotesInPage = result.footnotesInPage;
+	citationsInPage = result.citationsInPage;
 
-		if (cachedHeadings) {
-				headings = cachedHeadings;
-		} else {
-				headings = buildHeadings(blocks);
-				try {
-						await fs.writeFile(headingsCacheFile, superjson.stringify(headings), "utf-8");
-				} catch (e) {
-						console.error("Error saving headings cache:", e);
-				}
+	if (cachedHeadings) {
+		headings = cachedHeadings;
+	} else {
+		headings = (buildHeadings(blocks) || []) as TocItem[];
+		try {
+			await fs.writeFile(headingsCacheFile, superjson.stringify(headings), "utf-8");
+		} catch (e) {
+			console.error("Error saving headings cache:", e);
 		}
-    setCurrentHeadings(headings);
-
-    const fileAtacchedBlocks = extractTargetBlocks(["image","video","file","audio"], blocks)
-        .filter((block) => {
-            if (!block) {
-                return false;
-            }
-            const imageOrVideoOrAudioOrFile = block.NImage || block.File || block.Video || block.NAudio;
-            return (
-                imageOrVideoOrAudioOrFile &&
-                imageOrVideoOrAudioOrFile.File &&
-                imageOrVideoOrAudioOrFile.File.Url
-            );
-        });
-    await processFileBlocks(fileAtacchedBlocks);
+	}
+	setCurrentHeadings(headings);
 }
 
 let recent_posts = null;
 if (pageFound && page.Slug === HOME_PAGE_SLUG && RECENT_POSTS_ON_HOME_PAGE) {
-		recent_posts = await getAllPosts();
-		recent_posts = recent_posts.filter((post) => !FULL_PREVIEW_COLLECTIONS.includes(post.Collection));
-		if (HIDE_UNDERSCORE_SLUGS_IN_LISTS) {
-				recent_posts = recent_posts.filter((post) => !post.Slug.startsWith("_"));
-		}
-		recent_posts = recent_posts.slice(0, 5);
-		if (recent_posts && headings) {
-				headings.push({
-						text: "Recent Posts",
-						slug: "auto-recent-posts",
-						depth: 1,
-				});
-		}
+	recent_posts = await getAllPosts();
+	recent_posts = recent_posts.filter((post) => !FULL_PREVIEW_COLLECTIONS.includes(post.Collection));
+	if (HIDE_UNDERSCORE_SLUGS_IN_LISTS) {
+		recent_posts = recent_posts.filter((post) => !post.Slug.startsWith("_"));
+	}
+	recent_posts = recent_posts.slice(0, 5);
+	if (recent_posts) {
+		headings.push({
+			text: "Recent Posts",
+			slug: "auto-recent-posts",
+			depth: 1,
+			subheadings: [],
+		});
+	}
 }
 ---
 
-{pageFound && resetFirstImage() && setTrackCurrentPageId(page.PageId) && (
-		<PageLayout
+{
+	pageFound && resetFirstImage() && setTrackCurrentPageId(page.PageId) && (
+		<>
+			<PageLayout
 				meta={{
-						title: page.Title || siteInfo.title,
-						description: page.Excerpt || siteInfo.description,
-						ogImage: `/og-image/${page.Slug}.png`,
+					title: page.Title || siteInfo.title,
+					description: page.Excerpt || siteInfo.description,
+					ogImage: `/og-image/${page.Slug}.png`,
+					hasMarkdownAlternate: MARKDOWN_EXPORT_ENABLED,
 				}}
-		>
-				<div class="max-w-[708px] sm:mr-20 print:max-w-full print:mr-auto">
-						<article class="break-words" data-pagefind-body>
-								{shouldUseCache && cachedHtml ? (
-										<div class="post-body" data-html-type="cached" set:html={cachedHtml}></div>
-								) : (
-										<div class="post-body" data-html-type="new">
-												<NotionBlocks blocks={blocks} />
-										</div>
-								)}
-								{headings && !!headings.length && <TOC headings={headings} />}
-						</article>
+			>
+				<div class="reading-column">
+					<article class="break-words" data-pagefind-body>
+						<PagefindIconMetadata post={page} />
+						{shouldUseCache && cachedHtml ? (
+							<div class="post-body" data-html-type="cached" set:html={cachedHtml} />
+						) : (
+							<div class="post-body" data-html-type="new">
+								<NotionBlocks blocks={blocks} />
+								{adjustedFootnotesConfig?.["in-page-footnotes-settings"]?.enabled &&
+									adjustedFootnotesConfig?.["in-page-footnotes-settings"]?.[
+										"generate-footnotes-section"
+									] &&
+									footnotesInPage && <FootnotesSection footnotes={footnotesInPage} />}
+								{/* Bibliography section */}
+								{BIBTEX_CITATIONS_ENABLED &&
+									CITATIONS?.["extract-and-process-bibtex-citations"]?.[
+										"generate-bibliography-section"
+									] &&
+									citationsInPage &&
+									citationsInPage.length > 0 && (
+										<BibliographySection citations={citationsInPage} />
+									)}{" "}
+							</div>
+						)}
+						{!!headings.length && <TOC headings={headings} />}
+					</article>
 				</div>
 				{RECENT_POSTS_ON_HOME_PAGE && recent_posts && (
-						<div class="max-w-[708px] sm:mr-20 print:max-w-full print:mr-auto">
-								<a href="#auto-recent-posts" id="auto-recent-posts" class="inline" onclick="var fullUrl = `${window.location.origin}${window.location.pathname}#${id}`; navigator.clipboard.writeText(fullUrl);">
-										<h2 class="mb-4 mt-8 text-2xl font-normal hasId">
-												<strong class="font-semibold">Recent Posts</strong>
-										</h2>
+					<div class="reading-column">
+						<h2 id="auto-recent-posts" class="hasId">
+							<strong class="font-semibold">Recent Posts</strong>
+						</h2>
+						<section aria-label="Recent posts list">
+							{LISTING_VIEW === "gallery" ? (
+								<div class="gallery-grid">
+									{recent_posts.map((post) => (
+										<PostCardGallery post={post} as="h3" />
+									))}
+								</div>
+							) : (
+								<ul>
+									{recent_posts.map((post) => (
+										<li>
+											<PostPreview post={post} as="h3" withDesc />
+										</li>
+									))}
+								</ul>
+							)}
+							<span class="mt-4 block sm:text-end">
+								<a class="view-all-link" href={getNavLink("/posts/")} aria-label="View all posts">
+									View all
+									<Icon class="h-4 w-4" name={"next"} aria-hidden="true" focusable="false" />
 								</a>
-								<section aria-label="Recent posts list">
-										<ul class="space-y-4 text-start">
-												{recent_posts.map((post) => (
-														<li class="flex flex-col max-w-full flex-wrap gap-1.5 [&_q]:basis-full">
-																<PostPreview post={post} as="h3" withDesc />
-														</li>
-												))}
-										</ul>
-										<span class="mt-4 block sm:text-end">
-												<a
-														class="sm:hover:text-accent"
-														href={getNavLink("/posts/")}
-														aria-label="View all posts"
-												>
-														View all →
-												</a>
-										</span>
-								</section>
-						</div>
+							</span>
+						</section>
+					</div>
 				)}
-		</PageLayout>
+			</PageLayout>
 
-		<button
-				id="to-top-btn"
-				class="cursor-pointer z-30 fixed print:hidden bottom-20 sm:bottom-8 end-4 flex h-10 w-10 translate-y-28 items-center justify-center rounded-full border-2 border-transparent bg-zinc-200 text-3xl opacity-0 transition-all duration-300 hover:border-zinc-400 data-[show=true]:translate-y-0 data-[show=true]:opacity-100 dark:bg-zinc-700 sm:end-8 sm:h-12 sm:w-12"
-				aria-label="Back to Top"
-				data-show="false"
-		>
+			<button id="to-top-btn" class="to-top-btn" aria-label="Back to Top" data-show="false">
 				<Icon name={"to-top"} class="h-6 w-6" aria-label="Go Back to Top" stroke-linecap="round" />
-		</button>
+			</button>
+			{MARKDOWN_EXPORT_ENABLED && page.Slug !== HOME_PAGE_SLUG && (
+				<CopyMarkdownButton class="copy-floating-btn" buttonClass="justify-center" />
+			)}
 
-		<script>
-				document.addEventListener("DOMContentLoaded", function () {
-						const scrollBtn = document.getElementById("to-top-btn");
-						const targetHeader = document.getElementById("main-header");
-						function callback(entries) {
-								entries.forEach((entry) => {
-										scrollBtn.dataset.show = (!entry.isIntersecting).toString();
-								});
-						}
-						scrollBtn.addEventListener("click", () => {
-								document.documentElement.scrollTo({ top: 0, behavior: "smooth" });
-						});
-						const observer = new IntersectionObserver(callback);
-						observer.observe(targetHeader);
-				});
-		</script>
-)}
+			<script src="../scripts/to-top-btn.ts" />
+		</>
+	)
+}

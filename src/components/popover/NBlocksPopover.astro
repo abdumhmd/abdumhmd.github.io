@@ -1,0 +1,94 @@
+---
+import Icon from "@/components/ui/Icon.astro";
+import type { Block } from "@/lib/interfaces";
+import NotionBlocks from "@/components/NotionBlocks.astro";
+import { SITEWIDE_FOOTNOTES_PAGE_SLUG } from "@/constants";
+interface Props {
+	block: Block;
+	linkedTo: string;
+	popoverSpanText: string;
+	popoverTitle?: string;
+	linkText?: string;
+	isInterlinkedBack?: boolean;
+}
+const {
+	block,
+	linkedTo,
+	popoverSpanText,
+	popoverTitle = "",
+	linkText = "Read more",
+	isInterlinkedBack = false,
+} = Astro.props;
+let id = "id" + Math.random().toString(16).slice(2) + "---" + block.Id;
+let isFootnote = false;
+const footnotePattern = "posts/" + SITEWIDE_FOOTNOTES_PAGE_SLUG;
+if (linkedTo && (linkedTo.includes(footnotePattern + "/") || linkedTo.endsWith(footnotePattern))) {
+	isFootnote = true;
+}
+---
+
+{
+	isFootnote ? (
+		<span class="text-link decoration-accent-2/40 underline decoration-dotted underline-offset-2">
+			<span
+				data-popover-target={`popover-description-${id}`}
+				data-popover-placement="bottom-end"
+				class={`cursor-pointer`}
+				aria-label="Show information for the linked content"
+			>
+				{popoverSpanText ? popoverSpanText : <slot />}
+			</span>
+		</span>
+	) : (
+		<span
+			class={`text-link ${isInterlinkedBack ? "hover:decoration-accent-2/40 no-underline hover:underline hover:decoration-dashed hover:underline-offset-2" : "decoration-accent-2/40 underline decoration-dashed underline-offset-2"}`}
+		>
+			<span
+				data-popover-target={`popover-description-${id}`}
+				data-popover-placement="bottom-end"
+				class={`cursor-pointer ${isInterlinkedBack ? "font-mono text-sm" : ""}`}
+				data-href={linkedTo}
+				aria-label="Show information for the linked content"
+			>
+				{popoverSpanText ? popoverSpanText : <slot />}
+			</span>
+		</span>
+	)
+}
+<template id={`template-popover-description-${id}`}>
+	<div
+		data-popover
+		id={`popover-description-${id}`}
+		role="tooltip"
+		class="popoverEl notion-popover hidden"
+	>
+		{
+			isFootnote ? (
+				<div class="space-y-2 p-3">
+					<NotionBlocks blocks={[block]} renderChildren={false} setId={false} />
+					<span data-popover-link>{""}</span>
+				</div>
+			) : (
+				<div
+					class="cursor-pointer space-y-2 p-3"
+					data-popover-card-link
+					data-href={linkedTo}
+					role="link"
+					tabindex="0"
+				>
+					{popoverTitle && <h3 class="notion-popover-title">{popoverTitle}</h3>}
+					<NotionBlocks blocks={[block]} renderChildren={false} setId={false} />
+					<a href={linkedTo} data-popover-link class="notion-popover-link">
+						{linkText}
+						<Icon
+							class="ms-1.5 h-3 w-3 rtl:rotate-180"
+							name={"jump"}
+							aria-hidden="true"
+							focusable="false"
+						/>
+					</a>
+				</div>
+			)
+		}
+	</div>
+</template>

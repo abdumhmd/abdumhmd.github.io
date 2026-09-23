@@ -1,0 +1,109 @@
+---
+import type { RichText, Block, Footnote } from "@/lib/interfaces";
+import { adjustedFootnotesConfig } from "@/lib/notion/client";
+import { numberToAlphabet } from "@/utils/numbering";
+import FootnoteContent from "@/components/notion-blocks/FootnoteContent.astro";
+
+export interface Props {
+	richText: RichText;
+	block: Block;
+}
+
+const { richText, block } = Astro.props;
+
+// Get footnote configuration
+const config = adjustedFootnotesConfig?.["in-page-footnotes-settings"];
+
+// Determine display mode
+const isMarginMode = config?.["show-in-margin-on-large-screens"] === true;
+
+// Get the footnote marker reference (e.g., "ft_a")
+const footnoteRef = richText.FootnoteRef;
+
+// Find the corresponding footnote in block.Footnotes
+let footnote: Footnote | undefined = undefined;
+if (block.Footnotes && footnoteRef) {
+	footnote = block.Footnotes.find((fn) => fn.Marker === footnoteRef);
+}
+
+// Generate unique ID for this footnote marker (using random component to avoid duplicates when same content appears multiple times)
+const uniqueId = `footnote-${Math.random().toString(16).slice(2)}-${block.Id}-${footnoteRef}`;
+
+// Determine what symbol to display:
+// - Use † ONLY when isMarginMode is false AND generate-footnotes-section is false
+// - Otherwise use sequential numbers [1], [2], etc.
+const generateSection = config?.["generate-footnotes-section"];
+const useNumbering = generateSection || isMarginMode;
+const displaySymbol =
+	useNumbering && footnote?.Index ? `[${numberToAlphabet(footnote.Index)}]` : "[†]";
+---
+
+{/* If no footnote content found, render as muted text (broken reference) */}
+{
+	!footnote ? (
+		<span class="footnote-marker-broken text-textColor/70" title="Footnote content not found">
+			{richText.PlainText}
+		</span>
+	) : (
+		<>
+			{/* Render footnote marker with appropriate attributes for popover or margin mode */}
+			{isMarginMode ? (
+				<span class="footnote-marker-underline">
+					<span
+						data-margin-note={uniqueId}
+						data-popover-target={`popover-description-${uniqueId}`}
+						data-popover-placement="bottom-end"
+						class="footnote-marker-ref"
+						aria-label="Show information for the linked content"
+					>
+						{displaySymbol}
+					</span>
+				</span>
+			) : (
+				<span class="footnote-marker-underline">
+					<span
+						data-popover-target={`popover-description-${uniqueId}`}
+						data-popover-placement="bottom-end"
+						class="footnote-marker-ref"
+						aria-label="Show information for the linked content"
+					>
+						{displaySymbol}
+					</span>
+				</span>
+			)}
+
+			{/* Template for popover content */}
+			<template id={`template-popover-description-${uniqueId}`}>
+				<div
+					data-popover
+					id={`popover-description-${uniqueId}`}
+					role="tooltip"
+					class="popoverEl notion-popover hidden"
+				>
+					<div class="space-y-2 p-3">
+						<FootnoteContent
+							content={footnote.Content}
+							sourceBlockId={block.Id}
+							sourceBlock={block}
+						/>
+						<span data-popover-link>{""}</span>
+					</div>
+				</div>
+			</template>
+
+			{/* Template for margin notes content (same structure, used by margin notes script) */}
+			{isMarginMode && (
+				<template id={`template-margin-${uniqueId}`}>
+					<div class="text-sm!">
+						<span class="text-quote align-super font-mono text-xs!">{displaySymbol}</span>{" "}
+						<FootnoteContent
+							content={footnote.Content}
+							sourceBlockId={block.Id}
+							sourceBlock={block}
+						/>
+					</div>
+				</template>
+			)}
+		</>
+	)
+}

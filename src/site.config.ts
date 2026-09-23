@@ -1,13 +1,10 @@
-import { getDatabase } from "@/lib/notion/client";
-// import { getNavLink, getSite } from "@/lib/blog-helpers";
+import { getDataSource } from "@/lib/notion/client";
 import type { SiteConfig } from "@/types";
 import { AUTHOR, WEBMENTION_LINK, HOME_PAGE_SLUG } from "@/constants";
 
 const tl = "",
-	ds = "",
-	path = "/",
-	oim = "";
-const database = await getDatabase();
+	ds = "";
+const database = await getDataSource();
 
 const siteTitle = tl ? `${tl} - ${database.Title}` : database.Title;
 const siteDescription = ds ? ds : database.Description;
