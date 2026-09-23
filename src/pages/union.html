@@ -29,10 +29,6 @@
     --accent: #8a7256;
     --accent-soft: #b9ab8e;
     --max-w: 780px;
-    /* An interlocking diamond-lattice band, echoing the woven gold tilet
-       trim on habesha kemis (olive-gold grout, brighter gold diamonds,
-       cream "eye" at each intersection). */
-    --tilet-pattern: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='20'%20height='20'%20viewBox='0%200%2020%2020'%3E%3Crect%20width='20'%20height='20'%20fill='%237a5c1e'/%3E%3Cpath%20d='M10%200%20L20%2010%20L10%2020%20L0%2010%20Z'%20fill='%23c9a227'/%3E%3Ccircle%20cx='10'%20cy='10'%20r='1.8'%20fill='%23f4ecd8'/%3E%3C/svg%3E");
   }
 
   * { box-sizing: border-box; }
@@ -108,14 +104,10 @@
   }
 
   .hero-divider {
-    width: 160px;
-    height: 18px;
+    width: 40px;
+    height: 1px;
+    background: var(--accent-soft);
     margin: 34px 0;
-    background-image: var(--tilet-pattern);
-    background-repeat: repeat-x;
-    background-size: 18px 18px;
-    background-position: center;
-    box-shadow: 0 0 0 1px rgba(58, 42, 16, 0.35);
   }
 
   nav.pillnav {
@@ -396,6 +388,7 @@
   footer {
     padding: 60px 0 80px;
     text-align: center;
+    border-top: 1px solid var(--line);
   }
 
   footer .amp {
@@ -462,19 +455,9 @@
     }
   }
 
-  header, section, footer, .tilet-strip {
+  header, section, footer {
     position: relative;
     z-index: 1;
-  }
-
-  .tilet-strip {
-    height: 20px;
-    background-image: var(--tilet-pattern);
-    background-repeat: repeat-x;
-    background-size: 20px 20px;
-    background-position: center;
-    border-top: 1px solid rgba(58, 42, 16, 0.4);
-    border-bottom: 1px solid rgba(58, 42, 16, 0.4);
   }
 
   @media (hover: none) {
@@ -487,8 +470,6 @@
 </style>
 </head>
 <body>
-
-<div class="tilet-strip" aria-hidden="true"></div>
 
 <div class="petal-field" aria-hidden="true"></div>
 
@@ -638,8 +619,6 @@
     </form>
   </div>
 </section>
-
-<div class="tilet-strip" aria-hidden="true"></div>
 
 <footer>
   <span class="amp">&amp;</span>
