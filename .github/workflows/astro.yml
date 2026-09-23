@@ -53,6 +53,8 @@ jobs:
 
       - name: "Initialize: Determine if cleanup is required"
         id: determine_cleanup
+        env:
+          COMMITS_JSON: ${{ toJSON(github.event.commits) }}
         run: |
           PUSH_NEEDED="false"
           EVENT="${{ github.event_name }}"
@@ -72,7 +74,7 @@ jobs:
               echo "🔁 Push event detected, checking for upstream sync conditions..."
 
               # Method 1 (legacy): detect commit message
-              if echo '${{ toJSON(github.event.commits) }}' | jq -r '.[].message' | grep -q 'from nerdymomocat-templates/'; then
+              if echo "$COMMITS_JSON" | jq -r '.[].message' | grep -q 'from nerdymomocat-templates/'; then
                 echo "✅ Detected a commit message in this push referencing the upstream template owner. Cleanup push is required."
                 PUSH_NEEDED="true"
               fi
