@@ -29,9 +29,10 @@
     --accent: #8a7256;
     --accent-soft: #b9ab8e;
     --max-w: 780px;
-    /* A tiny alternating-triangle band, echoing the woven tilet border
-       trim on habesha kemis — kept to one hue so it stays subtle. */
-    --tilet-pattern: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='10'%20viewBox='0%200%2016%2010'%3E%3Cpath%20d='M0%2010%20L4%200%20L8%2010%20Z'%20fill='%238a7256'/%3E%3Cpath%20d='M8%2010%20L12%200%20L16%2010%20Z'%20fill='%238a7256'%20fill-opacity='0.45'/%3E%3C/svg%3E");
+    /* An interlocking diamond-lattice band, echoing the woven gold tilet
+       trim on habesha kemis (olive-gold grout, brighter gold diamonds,
+       cream "eye" at each intersection). */
+    --tilet-pattern: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='20'%20height='20'%20viewBox='0%200%2020%2020'%3E%3Crect%20width='20'%20height='20'%20fill='%237a5c1e'/%3E%3Cpath%20d='M10%200%20L20%2010%20L10%2020%20L0%2010%20Z'%20fill='%23c9a227'/%3E%3Ccircle%20cx='10'%20cy='10'%20r='1.8'%20fill='%23f4ecd8'/%3E%3C/svg%3E");
   }
 
   * { box-sizing: border-box; }
@@ -108,13 +109,13 @@
 
   .hero-divider {
     width: 160px;
-    height: 14px;
+    height: 18px;
     margin: 34px 0;
     background-image: var(--tilet-pattern);
     background-repeat: repeat-x;
-    background-size: 16px 14px;
+    background-size: 18px 18px;
     background-position: center;
-    opacity: 0.85;
+    box-shadow: 0 0 0 1px rgba(58, 42, 16, 0.35);
   }
 
   nav.pillnav {
@@ -467,11 +468,13 @@
   }
 
   .tilet-strip {
-    height: 10px;
+    height: 20px;
     background-image: var(--tilet-pattern);
     background-repeat: repeat-x;
+    background-size: 20px 20px;
     background-position: center;
-    opacity: 0.55;
+    border-top: 1px solid rgba(58, 42, 16, 0.4);
+    border-bottom: 1px solid rgba(58, 42, 16, 0.4);
   }
 
   @media (hover: none) {
