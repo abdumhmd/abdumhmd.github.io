@@ -29,6 +29,9 @@
     --accent: #8a7256;
     --accent-soft: #b9ab8e;
     --max-w: 780px;
+    /* A tiny alternating-triangle band, echoing the woven tilet border
+       trim on habesha kemis — kept to one hue so it stays subtle. */
+    --tilet-pattern: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='16'%20height='10'%20viewBox='0%200%2016%2010'%3E%3Cpath%20d='M0%2010%20L4%200%20L8%2010%20Z'%20fill='%238a7256'/%3E%3Cpath%20d='M8%2010%20L12%200%20L16%2010%20Z'%20fill='%238a7256'%20fill-opacity='0.45'/%3E%3C/svg%3E");
   }
 
   * { box-sizing: border-box; }
@@ -104,10 +107,14 @@
   }
 
   .hero-divider {
-    width: 40px;
-    height: 1px;
-    background: var(--accent-soft);
+    width: 160px;
+    height: 14px;
     margin: 34px 0;
+    background-image: var(--tilet-pattern);
+    background-repeat: repeat-x;
+    background-size: 16px 14px;
+    background-position: center;
+    opacity: 0.85;
   }
 
   nav.pillnav {
@@ -388,7 +395,6 @@
   footer {
     padding: 60px 0 80px;
     text-align: center;
-    border-top: 1px solid var(--line);
   }
 
   footer .amp {
@@ -455,9 +461,17 @@
     }
   }
 
-  header, section, footer {
+  header, section, footer, .tilet-strip {
     position: relative;
     z-index: 1;
+  }
+
+  .tilet-strip {
+    height: 10px;
+    background-image: var(--tilet-pattern);
+    background-repeat: repeat-x;
+    background-position: center;
+    opacity: 0.55;
   }
 
   @media (hover: none) {
@@ -470,6 +484,8 @@
 </style>
 </head>
 <body>
+
+<div class="tilet-strip" aria-hidden="true"></div>
 
 <div class="petal-field" aria-hidden="true"></div>
 
@@ -619,6 +635,8 @@
     </form>
   </div>
 </section>
+
+<div class="tilet-strip" aria-hidden="true"></div>
 
 <footer>
   <span class="amp">&amp;</span>
