@@ -2,52 +2,50 @@
   Standalone wedding page — intentionally NOT part of the site's Astro/Notion template.
   This is a plain static .html file; Astro serves files like this in src/pages/ as-is,
   with no layout or component processing, building it to dist/union/index.html (=> /union).
-
-  TODO before launch: fill in the [Zelle / PayPal / CashApp] handles in the Registry
-  section — these weren't provided yet.
 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Abdurahman & Ekram — Our Wedding</title>
-<meta name="description" content="Join us as we celebrate our wedding on November 15, 2026 in Landover, MD." />
+<title>Ekram & Abdurahman — Our Mels</title>
+<meta name="description" content="Join us as we celebrate our Mels reception on November 15, 2026 in Landover, MD." />
 <meta name="robots" content="noindex" />
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet" />
 
 <style>
   :root {
-    --ivory: #faf7f2;
-    --ivory-2: #f2ede4;
-    --ink: #2b2825;
-    --ink-soft: #5c574f;
-    --line: #ddd4c4;
-    --accent: #8a7256;
-    --accent-soft: #b9ab8e;
+    --ivory: #f7f7f4;
+    --ivory-2: #efefea;
+    --ink: #4f6249;
+    --ink-soft: #75876c;
+    --line: #dde2d4;
+    --accent: #55684c;
+    --accent-soft: #9aab8f;
     --max-w: 780px;
   }
 
   * { box-sizing: border-box; }
 
-  html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; font-size: 17.5px; }
 
   body {
     margin: 0;
     background: var(--ivory);
     color: var(--ink);
-    font-family: "Jost", sans-serif;
-    font-weight: 300;
-    line-height: 1.7;
+    font-family: "Cormorant Garamond", serif;
+    font-weight: 400;
+    font-size: 1.05rem;
+    line-height: 1.75;
     -webkit-font-smoothing: antialiased;
   }
 
   h1, h2, h3, .display {
     font-family: "Cormorant Garamond", serif;
-    font-weight: 500;
+    font-weight: 400;
     letter-spacing: 0.01em;
     margin: 0;
   }
@@ -70,25 +68,39 @@
     position: relative;
   }
 
-  .hero .eyebrow {
-    font-size: 0.72rem;
-    letter-spacing: 0.28em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 28px;
+  .intro {
+    font-style: italic;
+    font-size: 1.15rem;
+    line-height: 1.6;
+    color: var(--ink);
+    text-align: center;
+    max-width: 420px;
+    margin: 0 auto 34px;
+  }
+
+  .details-note {
+    margin: 40px auto 0;
+    font-size: 1rem;
   }
 
   .hero h1 {
-    font-size: clamp(2.6rem, 8vw, 5rem);
-    line-height: 1.08;
+    /* Fixed in px (not rem) so the root font-size bump above leaves the
+       names' size untouched. */
+    font-size: clamp(38.4px, 7.5vw, 70.4px);
+    line-height: 1.15;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
   }
 
   .hero .amp {
     display: block;
     font-style: italic;
-    font-size: 0.5em;
-    color: var(--accent-soft);
-    margin: 6px 0;
+    font-size: 0.55em;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--ink);
+    margin: 4px 0;
   }
 
   .hero .subline {
@@ -140,6 +152,35 @@
     color: var(--ivory);
     background: var(--ink);
     border-color: var(--ink);
+  }
+
+  /* Draws the eye to RSVP: filled instead of outlined, plus a slow, soft pulse. */
+  nav.pillnav a.pillnav__cta {
+    color: var(--ivory);
+    background: var(--accent);
+    border-color: var(--accent);
+    font-weight: 500;
+    animation: rsvp-pulse 2.6s ease-in-out infinite;
+  }
+
+  nav.pillnav a.pillnav__cta:hover {
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+
+  @keyframes rsvp-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(85, 104, 76, 0.4); }
+    50% { box-shadow: 0 0 0 9px rgba(85, 104, 76, 0); }
+  }
+
+  nav.pillnav a.pillnav__cta.active {
+    background: var(--ink);
+    border-color: var(--ink);
+    animation: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    nav.pillnav a.pillnav__cta { animation: none; }
   }
 
   /* ---------- Sections (click-to-reveal panels) ---------- */
@@ -215,10 +256,6 @@
     gap: 24px;
   }
 
-  .cards.cards-3 {
-    grid-template-columns: 1fr 1fr 1fr;
-  }
-
   .card {
     background: var(--ivory-2);
     border: 1px solid var(--line);
@@ -238,9 +275,66 @@
     font-size: 0.96rem;
   }
 
-  .card .cal-link {
+  /* ---------- Invite-style date bar ---------- */
+  .date-bar {
+    max-width: 460px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .date-bar__month,
+  .date-bar__year {
+    font-size: 0.85rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  .date-bar__row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 18px 0;
+  }
+
+  .date-bar__rule {
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  .date-bar__day,
+  .date-bar__time {
+    font-size: 0.85rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .date-bar__num {
+    font-size: clamp(2.2rem, 6vw, 3rem);
+    color: var(--ink);
+  }
+
+  .date-bar__address {
+    text-align: center;
+    margin: 34px 0 0;
+    font-size: 0.95rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  .date-bar__links {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    margin-top: 22px;
+  }
+
+  .cal-link {
     display: inline-block;
-    margin-top: 18px;
     font-size: 0.72rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -248,39 +342,6 @@
     text-decoration: none;
     border-bottom: 1px solid var(--accent-soft);
     padding-bottom: 2px;
-  }
-
-  /* ---------- Schedule ---------- */
-  .timeline {
-    max-width: 520px;
-    margin: 0 auto;
-  }
-
-  .timeline-item {
-    display: grid;
-    grid-template-columns: 100px 1fr;
-    gap: 20px;
-    padding: 20px 0;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .timeline-item:last-child { border-bottom: none; }
-
-  .timeline-item time {
-    font-family: "Cormorant Garamond", serif;
-    font-size: 1.1rem;
-    color: var(--accent);
-    white-space: nowrap;
-  }
-
-  .timeline-item .what {
-    font-weight: 400;
-  }
-
-  .timeline-item .where {
-    color: var(--ink-soft);
-    font-size: 0.9rem;
-    margin-top: 3px;
   }
 
   /* ---------- Travel / Registry ---------- */
@@ -328,6 +389,16 @@
     gap: 6px;
   }
 
+  .field[hidden] {
+    display: none;
+  }
+
+  .field input:disabled {
+    color: var(--ink-soft);
+    border-color: var(--line);
+    cursor: not-allowed;
+  }
+
   .field label {
     font-size: 0.72rem;
     letter-spacing: 0.1em;
@@ -338,8 +409,8 @@
   .field input,
   .field select,
   .field textarea {
-    font-family: "Jost", sans-serif;
-    font-size: 1rem;
+    font-family: "Cormorant Garamond", serif;
+    font-size: 1.1rem;
     color: var(--ink);
     background: transparent;
     border: none;
@@ -362,8 +433,8 @@
 
   form.rsvp button {
     margin-top: 10px;
-    font-family: "Jost", sans-serif;
-    font-size: 0.78rem;
+    font-family: "Cormorant Garamond", serif;
+    font-size: 0.85rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--ivory);
@@ -412,9 +483,42 @@
   }
 
   @media (max-width: 640px) {
-    .cards, .cards.cards-3 { grid-template-columns: 1fr; }
+    .cards { grid-template-columns: 1fr; }
     .rsvp-row { flex-direction: column; gap: 20px; }
     section { padding: 72px 0; }
+    .date-bar__row { gap: 10px; }
+    .date-bar__rule { display: none; }
+    .date-bar__links { gap: 18px; flex-wrap: wrap; }
+  }
+
+  /* ---------- Corner florals ---------- */
+  /* An original hand-drawn-style rose + leaves sketch, echoing the sage
+     line-art corners on the invitation. Reused (mirrored via rotate) in
+     the hero and the footer. */
+  .corner-floral {
+    position: absolute;
+    width: 170px;
+    height: auto;
+    opacity: 0.9;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .corner-floral--tr {
+    top: 0;
+    right: 0;
+  }
+
+  .corner-floral--bl {
+    bottom: 0;
+    left: 0;
+  }
+
+  @media (max-width: 640px) {
+    .corner-floral {
+      width: 110px;
+      opacity: 0.75;
+    }
   }
 
   /* ---------- Cursor petals ---------- */
@@ -474,21 +578,35 @@
 <div class="petal-field" aria-hidden="true"></div>
 
 <header class="hero">
-  <span class="eyebrow">We're getting married</span>
+  <img class="corner-floral corner-floral--tr" src="/union-floral-tr.png" alt="" aria-hidden="true" />
+
+  <p class="intro">
+    Together with our families<br />
+    we request the honor of your presence<br />
+    at the Mels reception of
+  </p>
   <h1>
-    Abdurahman
-    <span class="amp">&amp;</span>
     Ekram
+    <span class="amp">&amp;</span>
+    Abdurahman
   </h1>
   <div class="hero-divider"></div>
-  <p class="subline">
-    <strong>November 15, 2026</strong> · Landover, MD
-  </p>
+  <div class="date-bar">
+    <div class="date-bar__month">November</div>
+    <div class="date-bar__row">
+      <span class="date-bar__rule"></span>
+      <span class="date-bar__day">Sunday</span>
+      <span class="date-bar__num">15</span>
+      <span class="date-bar__time">4:00PM</span>
+      <span class="date-bar__rule"></span>
+    </div>
+    <div class="date-bar__year">2026</div>
+  </div>
   <nav class="pillnav">
     <a href="#details">Details</a>
-    <a href="#schedule">Schedule</a>
+    <a href="#attire">Attire</a>
     <a href="#registry">Registry</a>
-    <a href="#rsvp">RSVP</a>
+    <a href="#rsvp" class="pillnav__cta">RSVP</a>
   </nav>
 </header>
 
@@ -499,52 +617,46 @@
       <span class="eyebrow">Join us</span>
       <h2>The Details</h2>
     </div>
-    <div class="cards">
-      <div class="card">
-        <h3>Ceremony</h3>
-        <p>Sunday, November 15, 2026</p>
-        <p>3:00 PM</p>
-        <p>2411 Pinebrook Ave, Landover, MD 20785</p>
-        <a class="cal-link" target="_blank" rel="noopener"
-           href="https://www.google.com/calendar/render?action=TEMPLATE&text=Abdurahman+%26+Ekram%27s+Wedding&dates=20261115T200000Z/20261115T220000Z&location=2411+Pinebrook+Ave%2C+Landover%2C+MD+20785&details=We+can%27t+wait+to+celebrate+with+you%21">
-          Add to calendar
-        </a>
-      </div>
-      <div class="card">
-        <h3>Reception</h3>
-        <p>Immediately following the ceremony</p>
-        <p>2411 Pinebrook Ave, Landover, MD 20785</p>
-        <a class="cal-link" target="_blank" rel="noopener"
-           href="https://www.google.com/maps/search/?api=1&query=2411+Pinebrook+Ave%2C+Landover%2C+MD+20785">
-          View on map
-        </a>
-      </div>
+    <div class="prose" style="margin-bottom: 40px;">
+      <p>
+        A Mels is the Ethiopian wedding reception held after the Nikah — an evening of
+        family, food, and celebration as we begin this new chapter together.
+      </p>
     </div>
+    <p class="date-bar__address">
+      2411 Pinebrook Ave<br />
+      Landover, MD 20785
+    </p>
+    <div class="date-bar__links">
+      <a class="cal-link" target="_blank" rel="noopener"
+         href="https://www.google.com/calendar/render?action=TEMPLATE&text=Ekram+%26+Abdurahman%27s+Mels&dates=20261115T200000Z/20261115T220000Z&location=2411+Pinebrook+Ave%2C+Landover%2C+MD+20785&details=We+can%27t+wait+to+celebrate+with+you%21">
+        Add to calendar
+      </a>
+      <a class="cal-link" target="_blank" rel="noopener"
+         href="https://www.google.com/maps/search/?api=1&query=2411+Pinebrook+Ave%2C+Landover%2C+MD+20785">
+        View on map
+      </a>
+    </div>
+    <p class="intro details-note">
+      Due to limited space,<br />
+      we cannot accommodate children
+    </p>
   </div>
 </section>
 
-<section id="schedule" class="panel">
+<section id="attire" class="panel">
   <button type="button" class="panel-close" aria-label="Close">&times;</button>
   <div class="wrap">
     <div class="section-head">
-      <span class="eyebrow">The Day</span>
-      <h2>Schedule</h2>
+      <span class="eyebrow">What to Wear</span>
+      <h2>Attire</h2>
     </div>
-    <div class="timeline">
-      <div class="timeline-item">
-        <time>3:00 PM</time>
-        <div>
-          <div class="what">Ceremony</div>
-          <div class="where">2411 Pinebrook Ave, Landover, MD</div>
-        </div>
-      </div>
-      <div class="timeline-item">
-        <time>To follow</time>
-        <div>
-          <div class="what">Reception</div>
-          <div class="where">2411 Pinebrook Ave, Landover, MD</div>
-        </div>
-      </div>
+    <div class="prose">
+      <p>
+        We'd love to see everyone in traditional Ethiopian attire — habesha kemis and
+        suits are warmly encouraged for this celebration. If you don't have traditional
+        wear, formal attire is very welcome too.
+      </p>
     </div>
   </div>
 </section>
@@ -558,23 +670,19 @@
     </div>
     <div class="prose">
       <p>
-        Your presence at our wedding is the greatest gift of all. For those who'd still like to
-        contribute to our wedding fund, you're welcome to send a gift through any of the
+        Your presence at our Mels is the greatest gift of all. For those who'd still like to
+        contribute to our wedding fund, you're welcome to send a gift through either of the
         options below.
       </p>
     </div>
-    <div class="cards cards-3" style="margin-top: 40px;">
-      <div class="card">
-        <h3>Zelle</h3>
-        <p>[Zelle phone number or email]</p>
-      </div>
-      <div class="card">
-        <h3>PayPal</h3>
-        <p>[paypal.me/yourusername]</p>
-      </div>
+    <div class="cards" style="margin-top: 40px;">
       <div class="card">
         <h3>Cash App</h3>
-        <p>[$YourCashtag]</p>
+        <p>$EkramJ</p>
+      </div>
+      <div class="card">
+        <h3>Venmo</h3>
+        <p>@aaabduali</p>
       </div>
     </div>
   </div>
@@ -587,7 +695,7 @@
       <span class="eyebrow">Kindly Respond</span>
       <h2>RSVP</h2>
     </div>
-    <p class="rsvp-note">Please respond by October 10, 2026</p>
+    <p class="rsvp-note">Please respond by October 20, 2026</p>
     <form class="rsvp" action="https://formspree.io/f/mgavywow" method="POST">
       <div class="field">
         <label for="name">Full Name</label>
@@ -604,8 +712,12 @@
         </div>
         <div class="field">
           <label for="guests">Number of Guests</label>
-          <input type="number" id="guests" name="guests" min="0" max="10" value="1" />
+          <input type="number" id="guests" name="guests" min="1" max="2" value="1" />
         </div>
+      </div>
+      <div class="field" id="guest-name-field" hidden>
+        <label for="guest_name">Guest's Name</label>
+        <input type="text" id="guest_name" name="guest_name" />
       </div>
       <div class="field">
         <label for="dietary">Dietary Restrictions</label>
@@ -621,9 +733,10 @@
 </section>
 
 <footer>
+  <img class="corner-floral corner-floral--bl" src="/union-floral-bl.png" alt="" aria-hidden="true" />
   <span class="amp">&amp;</span>
-  <p>Abdurahman &amp; Ekram</p>
-  <p>Questions? Reach us at <a href="tel:+15157350684">(515) 735-0684</a> or <a href="tel:+12024150121">(202) 415-0121</a></p>
+  <p>Ekram &amp; Abdurahman</p>
+  <p>Questions? Reach us at <a href="tel:+15157350864">(515) 735-0864</a> or <a href="tel:+12024150112">(202) 415-0112</a></p>
 </footer>
 
 <script>
@@ -668,6 +781,42 @@
         });
       }
     });
+  })();
+</script>
+
+<script>
+  (function () {
+    var guestsInput = document.getElementById("guests");
+    var guestNameField = document.getElementById("guest-name-field");
+    var guestNameInput = document.getElementById("guest_name");
+    if (!guestsInput || !guestNameField || !guestNameInput) return;
+
+    function sync() {
+      var showing = parseInt(guestsInput.value, 10) > 1;
+      guestNameField.hidden = !showing;
+      guestNameInput.required = showing;
+    }
+
+    guestsInput.addEventListener("input", sync);
+    guestsInput.addEventListener("change", sync);
+    sync();
+  })();
+</script>
+
+<script>
+  (function () {
+    var attendingSelect = document.getElementById("attending");
+    var dietaryInput = document.getElementById("dietary");
+    if (!attendingSelect || !dietaryInput) return;
+
+    function sync() {
+      var declining = attendingSelect.value === "Regretfully declines";
+      dietaryInput.disabled = declining;
+      if (declining) dietaryInput.value = "";
+    }
+
+    attendingSelect.addEventListener("change", sync);
+    sync();
   })();
 </script>
 
