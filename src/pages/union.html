@@ -293,6 +293,24 @@
     color: var(--ink);
   }
 
+  .details-datetime {
+    text-align: center;
+    margin: 34px 0 0;
+    font-size: 1.2rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+    line-height: 1.9;
+  }
+
+  .date-bar__address-sub {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+  }
+
   .date-bar__address {
     text-align: center;
     margin: 34px 0 0;
@@ -621,13 +639,16 @@
         friends.
       </p>
     </div>
-    <p class="date-bar__address">
-      Sunday, November 15, 2026 · 5:00–10:00 PM
+    <p class="details-datetime">
+      Sunday, November 15, 2026<br />
+      5:00–10:00 PM
     </p>
     <p class="date-bar__address">
       Prince George's Ballroom<br />
-      2411 Pinebrook Ave<br />
-      Landover, MD 20785
+      <span class="date-bar__address-sub">
+        2411 Pinebrook Ave<br />
+        Landover, MD 20785
+      </span>
     </p>
     <div class="date-bar__links">
       <a class="cal-link" target="_blank" rel="noopener"
