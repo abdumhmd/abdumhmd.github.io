@@ -433,8 +433,28 @@
 
   .field textarea { resize: vertical; min-height: 70px; }
 
-  .rsvp-row { display: flex; gap: 20px; }
-  .rsvp-row .field { flex: 1; }
+  .field-checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+
+  .field-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    accent-color: var(--accent);
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .field-checkbox span {
+    font-family: "Cormorant Garamond", serif;
+    font-size: 1.1rem;
+    color: var(--ink);
+  }
 
   form.rsvp button {
     margin-top: 10px;
@@ -489,7 +509,6 @@
 
   @media (max-width: 640px) {
     .cards { grid-template-columns: 1fr; }
-    .rsvp-row { flex-direction: column; gap: 20px; }
     section { padding: 72px 0; }
     .date-bar__row { gap: 8px; }
     .date-bar__side { min-width: 20px; padding: 8px 0; }
@@ -621,7 +640,6 @@
   <button type="button" class="panel-close" aria-label="Close">&times;</button>
   <div class="wrap">
     <div class="section-head">
-      <span class="eyebrow">Join us</span>
       <h2>The Details</h2>
     </div>
     <div class="prose" style="margin-bottom: 40px;">
@@ -658,7 +676,6 @@
   <button type="button" class="panel-close" aria-label="Close">&times;</button>
   <div class="wrap">
     <div class="section-head">
-      <span class="eyebrow">What to Wear</span>
       <h2>Attire</h2>
     </div>
     <div class="prose">
@@ -675,7 +692,6 @@
   <button type="button" class="panel-close" aria-label="Close">&times;</button>
   <div class="wrap">
     <div class="section-head">
-      <span class="eyebrow">With Love</span>
       <h2>Registry</h2>
     </div>
     <div class="prose">
@@ -711,20 +727,18 @@
         <label for="name">Full Name</label>
         <input type="text" id="name" name="name" required />
       </div>
-      <div class="rsvp-row">
-        <div class="field">
-          <label for="attending">Will you attend?</label>
-          <select id="attending" name="attending" required>
-            <option value="">Select one</option>
-            <option value="Joyfully accepts">Joyfully accepts</option>
-            <option value="Regretfully declines">Regretfully declines</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="guests">Number of Guests</label>
-          <input type="number" id="guests" name="guests" min="1" max="2" value="1" />
-        </div>
+      <div class="field">
+        <label for="attending">Will you attend?</label>
+        <select id="attending" name="attending" required>
+          <option value="">Select one</option>
+          <option value="Joyfully accepts">Joyfully accepts</option>
+          <option value="Regretfully declines">Regretfully declines</option>
+        </select>
       </div>
+      <label class="field field-checkbox" for="plus_one">
+        <input type="checkbox" id="plus_one" name="plus_one" />
+        <span>I'll be bringing a plus one</span>
+      </label>
       <div class="field" id="guest-name-field" hidden>
         <label for="guest_name">Guest's Name</label>
         <input type="text" id="guest_name" name="guest_name" />
@@ -796,19 +810,19 @@
 
 <script>
   (function () {
-    var guestsInput = document.getElementById("guests");
+    var plusOneCheckbox = document.getElementById("plus_one");
     var guestNameField = document.getElementById("guest-name-field");
     var guestNameInput = document.getElementById("guest_name");
-    if (!guestsInput || !guestNameField || !guestNameInput) return;
+    if (!plusOneCheckbox || !guestNameField || !guestNameInput) return;
 
     function sync() {
-      var showing = parseInt(guestsInput.value, 10) > 1;
+      var showing = plusOneCheckbox.checked;
       guestNameField.hidden = !showing;
       guestNameInput.required = showing;
+      if (!showing) guestNameInput.value = "";
     }
 
-    guestsInput.addEventListener("input", sync);
-    guestsInput.addEventListener("change", sync);
+    plusOneCheckbox.addEventListener("change", sync);
     sync();
   })();
 </script>
