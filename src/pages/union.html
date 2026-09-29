@@ -298,10 +298,12 @@
     margin: 18px 0;
   }
 
-  .date-bar__rule {
+  .date-bar__side {
     flex: 1;
-    height: 1px;
-    background: var(--line);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 0;
+    text-align: center;
   }
 
   .date-bar__day,
@@ -488,7 +490,7 @@
     .rsvp-row { flex-direction: column; gap: 20px; }
     section { padding: 72px 0; }
     .date-bar__row { gap: 8px; }
-    .date-bar__rule { min-width: 20px; }
+    .date-bar__side { min-width: 20px; padding: 8px 0; }
     .date-bar__links { gap: 18px; flex-wrap: wrap; }
   }
 
@@ -595,11 +597,13 @@
   <div class="date-bar">
     <div class="date-bar__month">November</div>
     <div class="date-bar__row">
-      <span class="date-bar__rule"></span>
-      <span class="date-bar__day">Sunday</span>
+      <div class="date-bar__side">
+        <span class="date-bar__day">Sunday</span>
+      </div>
       <span class="date-bar__num">15</span>
-      <span class="date-bar__time">4:00PM</span>
-      <span class="date-bar__rule"></span>
+      <div class="date-bar__side">
+        <span class="date-bar__time">4:00PM</span>
+      </div>
     </div>
     <div class="date-bar__year">2026</div>
   </div>
