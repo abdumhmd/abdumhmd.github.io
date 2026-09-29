@@ -14,7 +14,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet" />
 
 <style>
   :root {
@@ -95,12 +95,13 @@
 
   .hero .amp {
     display: block;
-    font-style: italic;
-    font-size: 0.55em;
+    font-family: "Alex Brush", cursive;
+    font-style: normal;
+    font-size: 0.9em;
     text-transform: none;
     letter-spacing: 0;
     color: var(--ink);
-    margin: 4px 0;
+    margin: 0;
   }
 
   .hero .subline {
@@ -463,9 +464,9 @@
   }
 
   footer .amp {
-    font-family: "Cormorant Garamond", serif;
-    font-style: italic;
-    font-size: 1.6rem;
+    font-family: "Alex Brush", cursive;
+    font-style: normal;
+    font-size: 2.4rem;
     color: var(--accent);
     display: block;
     margin-bottom: 10px;
@@ -486,8 +487,8 @@
     .cards { grid-template-columns: 1fr; }
     .rsvp-row { flex-direction: column; gap: 20px; }
     section { padding: 72px 0; }
-    .date-bar__row { gap: 10px; }
-    .date-bar__rule { display: none; }
+    .date-bar__row { gap: 8px; }
+    .date-bar__rule { min-width: 20px; }
     .date-bar__links { gap: 18px; flex-wrap: wrap; }
   }
 
