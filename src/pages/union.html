@@ -157,35 +157,6 @@
     border-color: var(--ink);
   }
 
-  /* Draws the eye to RSVP: filled instead of outlined, plus a slow, soft pulse. */
-  nav.pillnav a.pillnav__cta {
-    color: var(--ivory);
-    background: var(--accent);
-    border-color: var(--accent);
-    font-weight: 500;
-    animation: rsvp-pulse 2.6s ease-in-out infinite;
-  }
-
-  nav.pillnav a.pillnav__cta:hover {
-    background: var(--ink);
-    border-color: var(--ink);
-  }
-
-  @keyframes rsvp-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(85, 104, 76, 0.4); }
-    50% { box-shadow: 0 0 0 9px rgba(85, 104, 76, 0); }
-  }
-
-  nav.pillnav a.pillnav__cta.active {
-    background: var(--ink);
-    border-color: var(--ink);
-    animation: none;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    nav.pillnav a.pillnav__cta { animation: none; }
-  }
-
   /* ---------- Sections (click-to-reveal panels) ---------- */
   /* Hidden by default so the page can't be scrolled into — a panel only
      appears once its nav button is clicked, via .panel.open below. */
@@ -632,7 +603,7 @@
     <a href="#details">Details</a>
     <a href="#attire">Attire</a>
     <a href="#registry">Registry</a>
-    <a href="#rsvp" class="pillnav__cta">RSVP</a>
+    <a href="#rsvp">RSVP</a>
   </nav>
 </header>
 
@@ -651,13 +622,16 @@
       </p>
     </div>
     <p class="date-bar__address">
+      Sunday, November 15, 2026 · 5:00–10:00 PM
+    </p>
+    <p class="date-bar__address">
       Prince George's Ballroom<br />
       2411 Pinebrook Ave<br />
       Landover, MD 20785
     </p>
     <div class="date-bar__links">
       <a class="cal-link" target="_blank" rel="noopener"
-         href="https://www.google.com/calendar/render?action=TEMPLATE&text=Ekram+%26+Abdurahman%27s+Mels&dates=20261115T220000Z/20261116T000000Z&location=Prince+George%27s+Ballroom%2C+2411+Pinebrook+Ave%2C+Landover%2C+MD+20785&details=We+can%27t+wait+to+celebrate+with+you%21">
+         href="https://www.google.com/calendar/render?action=TEMPLATE&text=Ekram+%26+Abdurahman%27s+Mels&dates=20261115T220000Z/20261116T030000Z&location=Prince+George%27s+Ballroom%2C+2411+Pinebrook+Ave%2C+Landover%2C+MD+20785&details=We+can%27t+wait+to+celebrate+with+you%21">
         Add to calendar
       </a>
       <a class="cal-link" target="_blank" rel="noopener"
@@ -682,7 +656,7 @@
       <p>
         We'd love to see everyone in traditional Ethiopian attire — habesha kemis and
         suits are warmly encouraged for this celebration. If you don't have traditional
-        wear, formal attire is very welcome too.
+        attire, please wear formal attire.
       </p>
     </div>
   </div>
